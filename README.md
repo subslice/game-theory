@@ -4,9 +4,9 @@
 
 ---
 
-### Getting Started
+## Getting Started
 
-#### Building Contracts
+### Building Contracts
 
 Since this is a workspace, each contract currently needs to be built independantly into WASM / ABI.
 
