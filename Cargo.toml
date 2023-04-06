@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "contracts/games_router",
+    "contracts/game_rock_paper_scissors"
+]
+
