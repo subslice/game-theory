@@ -9,6 +9,7 @@ ink = { version = "4.0.0-beta", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+traits = { path = "../traits", default-features = false }
 
 [lib]
 name = "game_public_good"
@@ -24,5 +25,6 @@ std = [
     "ink/std",
     "scale/std",
     "scale-info/std",
+    "traits/std",
 ]
 ink-as-dependency = []
