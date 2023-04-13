@@ -12,6 +12,23 @@ mod games_router {
         value: bool,
     }
 
+    /**
+     * 
+     * IMPLEMENTATION NOTES:
+     * 
+     * 1. Code in this contract must not contain enums representing game types.
+     *    Instead, it should have a storage of the following: 
+     *      - Vector of allowed Contract Hashes (can only add to it by this contract's owner)
+     *      - HashMap of <Contract Hash, Vec<Contract Address>>.
+     * 
+     * 2. Code in this contract must not contain any game-specific logic.
+     * 
+     * 3. Code in this contract must enable instantiation of any game contract using the contract's hash.
+     * 
+     * 
+     * 
+     */
+
     impl GamesRouter {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
