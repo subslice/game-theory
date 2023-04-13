@@ -30,6 +30,10 @@ Because the Router is agnostic to the exact games, other games which follow the 
 
 There is also no absolute need for the router other than making the instantiation of games easier as well as some future generic behaviour which simplifies contract interaction.
 
+> This is a design choice. Chain-extensions can either be implemented in the games' contracts or in the router if the behaviour is generic.
+> 
+> For example: Playing a round requires that the submission is committed (hashed) and later revealed. This can either be done by the Router or directly with the game. The applies to things such as rewards distributions.
+
 
 ### Architecture Diagram
 
