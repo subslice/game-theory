@@ -2,7 +2,7 @@
 
 #[ink::contract]
 mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, Error };
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, Error };
     use ink::prelude::vec::Vec;
 
     /// A single game storage.
@@ -19,38 +19,46 @@ mod game_public_good {
         current_round: Option<GameRound>,
         /// The id of the next round
         next_round_id: u8,
-        /// Max players allowed in the game
-        max_players: u8,
+        /// The configurations of the game
+        configs: GameConfigs,
     }
 
     impl GamePublicGood {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(max_players: u8) -> Self {
+        pub fn new(configs: GameConfigs) -> Self {
             Self {
                 players: Vec::new(),
                 status: GameStatus::Initialized,
                 rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
-                max_players,
+                configs,
             }
         }
 
         /// A default constructor that initializes this game with 10 players.
         #[ink(constructor)]
         pub fn default() -> Self {
-            Self::new(10)
+            Self::new(GameConfigs {
+                max_players: 10,
+                min_players: 2,
+                min_round_contribution: None,
+                max_round_contribution: None,
+                post_round_actions: false,
+                round_timeout: None,
+                max_rounds: None,
+            })
         }
     }
 
     /// An implementation of the `GameLifecycle` trait for the `GamePublicGood` contract.
     impl GameLifecycle for GamePublicGood {
-        #[ink(message, payable)]
-        fn initialize(&mut self) {
-            unimplemented!()
+        #[ink(message)]
+        fn get_configs(&self) -> GameConfigs {
+            self.configs.clone()
         }
-
+        
         #[ink(message)]
         fn get_players(&self) -> Vec<AccountId> {
             self.players.clone()
@@ -70,7 +78,7 @@ mod game_public_good {
         fn join(&mut self, player: AccountId) -> Result<u8, Error> {
             if Self::env().caller() != player {
                 return Err(Error::CallerMustMatchNewPlayer)
-            } else if self.players.len() >= self.max_players as usize {
+            } else if self.players.len() >= self.configs.max_players as usize {
                 return Err(Error::MaxPlayersReached)
             }
 
@@ -95,7 +103,15 @@ mod game_public_good {
         /// Can construct with "new()" method.
         #[ink::test]
         fn new_works() {
-            let game_public_good = GamePublicGood::new(0);
+            let game_public_good = GamePublicGood::new(GameConfigs {
+                max_players: 10,
+                min_players: 2,
+                min_round_contribution: None,
+                max_round_contribution: None,
+                post_round_actions: false,
+                round_timeout: None,
+                max_rounds: None,
+            });
             assert_eq!(game_public_good.players, vec![]);
             assert_eq!(game_public_good.get_current_round(), None);
         }
@@ -103,9 +119,10 @@ mod game_public_good {
         /// A new player can join the game.
         #[ink::test]
         fn player_can_join() {
-            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::new(10);
+            let mut game_public_good = GamePublicGood::default();
             
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can join when the caller is alice joining as alice (own account)
@@ -115,9 +132,10 @@ mod game_public_good {
         /// A new player cannot add someone else to the game.
         #[ink::test]
         fn player_must_join_as_self() {
-            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::new(10);
+            let mut game_public_good = GamePublicGood::default();
             
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
