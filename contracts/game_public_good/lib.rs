@@ -183,38 +183,5 @@ mod game_public_good {
 
             Ok(())
         }
-
-        // We test that we can read and write a value from the on-chain contract contract.
-        // #[ink_e2e::test]
-        // async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-        //     // Given
-        //     let constructor = TestRef::new(false);
-        //     let contract_account_id = client
-        //         .instantiate("test", &ink_e2e::bob(), constructor, 0, None)
-        //         .await
-        //         .expect("instantiate failed")
-        //         .account_id;
-
-        //     let get = build_message::<TestRef>(contract_account_id.clone())
-        //         .call(|test| test.get());
-        //     let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-        //     assert!(matches!(get_result.return_value(), false));
-
-        //     // When
-        //     let flip = build_message::<TestRef>(contract_account_id.clone())
-        //         .call(|test| test.flip());
-        //     let _flip_result = client
-        //         .call(&ink_e2e::bob(), flip, 0, None)
-        //         .await
-        //         .expect("flip failed");
-
-        //     // Then
-        //     let get = build_message::<TestRef>(contract_account_id.clone())
-        //         .call(|test| test.get());
-        //     let get_result = client.call_dry_run(&ink_e2e::bob(), &get, 0, None).await;
-        //     assert!(matches!(get_result.return_value(), true));
-
-        //     Ok(())
-        // }
     }
 }
