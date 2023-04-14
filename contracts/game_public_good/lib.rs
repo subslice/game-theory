@@ -170,16 +170,16 @@ mod game_public_good {
 
             // When
             let contract_account_id = client
-                .instantiate("game_1", &ink_e2e::alice(), constructor, 0, None)
+                .instantiate("game_public_good", &ink_e2e::alice(), constructor, 0, None)
                 .await
                 .expect("instantiation failed")
                 .account_id;
 
             // Then
-            let getPlayers = build_message::<GamePublicGoodRef>(contract_account_id.clone())
+            let get_players = build_message::<GamePublicGoodRef>(contract_account_id.clone())
                 .call(|test| test.get_players());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get, 0, None).await;
-            assert!(matches!(get_result.return_value(), vec![]));
+            let get_result = client.call_dry_run(&ink_e2e::alice(), &get_players, 0, None).await;
+            assert_eq!(get_result.return_value(), vec![]);
 
             Ok(())
         }
