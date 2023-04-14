@@ -4,6 +4,8 @@ use ink::primitives::AccountId;
 use ink::prelude::vec::Vec;
 use ink::storage::traits::StorageLayout;
 
+// TODO: add some events
+
 /// Game errors.
 #[derive(scale::Encode, scale::Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -11,7 +13,9 @@ pub enum Error {
     /// Caller must match the palyer being added
     CallerMustMatchNewPlayer,
     /// No more space for players to join
-    MaxPlayersReached
+    MaxPlayersReached,
+    /// Fees paid to join the game are not sufficient
+    InsufficientJoiningFees,
 }
 
 #[derive(scale::Decode, scale::Encode, Debug, PartialEq, Eq, Clone, Copy, StorageLayout)]
@@ -37,7 +41,8 @@ pub enum RoundStatus {
 pub struct GameRound {
     pub round_number: u32,
     pub status: RoundStatus,
-    pub players: Vec<AccountId>,
+    pub player_commits: Vec<(AccountId, u128)>,
+    pub player_reveals: Vec<(AccountId, u128)>,
     pub player_contributions: Vec<(AccountId, u128)>,
     pub total_contribution: u128,
     pub total_reward: u128,
@@ -54,6 +59,7 @@ pub struct GameConfigs {
     /// The number of blocks before a round is considered stale.
     pub round_timeout: Option<u32>,
     pub max_rounds: Option<u32>,
+    pub join_fee: Option<u128>,
 }
 
 /// Defines the basic game lifecycle methods.

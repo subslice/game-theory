@@ -48,6 +48,7 @@ mod game_public_good {
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
+                join_fee: None,
             })
         }
     }
@@ -78,8 +79,19 @@ mod game_public_good {
         fn join(&mut self, player: AccountId) -> Result<u8, Error> {
             if Self::env().caller() != player {
                 return Err(Error::CallerMustMatchNewPlayer)
-            } else if self.players.len() >= self.configs.max_players as usize {
+            }
+            
+            if self.players.len() >= self.configs.max_players as usize {
                 return Err(Error::MaxPlayersReached)
+            }
+
+            match self.configs.join_fee {
+                Some(fees) => {
+                    if self.env().transferred_value() < fees {
+                        return Err(Error::InsufficientJoiningFees)
+                    }
+                }
+                None => (),
             }
 
             self.players.push(player);
@@ -111,6 +123,7 @@ mod game_public_good {
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
+                join_fee: None,
             });
             assert_eq!(game_public_good.players, vec![]);
             assert_eq!(game_public_good.get_current_round(), None);
