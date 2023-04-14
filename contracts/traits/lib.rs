@@ -3,11 +3,12 @@
 use ink::primitives::AccountId;
 use ink::prelude::vec::Vec;
 use ink::storage::traits::StorageLayout;
+use scale::{Encode, Decode};
 
 // TODO: add some events
 
 /// Game errors.
-#[derive(scale::Encode, scale::Decode, Debug, PartialEq, Eq)]
+#[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum Error {
     /// Caller must match the palyer being added
@@ -18,8 +19,8 @@ pub enum Error {
     InsufficientJoiningFees,
 }
 
-#[derive(scale::Decode, scale::Encode, Debug, PartialEq, Eq, Clone, Copy, StorageLayout)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum GameStatus {
     Initialized,
     Ready,
@@ -27,8 +28,8 @@ pub enum GameStatus {
     Ended,
 }
 
-#[derive(scale::Decode, scale::Encode, Debug, PartialEq, Eq, Clone, Copy, StorageLayout)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum RoundStatus {
     Ready,
     Started,
@@ -36,8 +37,8 @@ pub enum RoundStatus {
     Ended,
 }
 
-#[derive(scale::Decode, scale::Encode, Debug, PartialEq, Eq, Clone, StorageLayout)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameRound {
     pub round_number: u32,
     pub status: RoundStatus,
@@ -48,8 +49,8 @@ pub struct GameRound {
     pub total_reward: u128,
 }
 
-#[derive(scale::Decode, scale::Encode, Debug, PartialEq, Eq, Clone, StorageLayout)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameConfigs {
     pub max_players: u8,
     pub min_players: u8,
