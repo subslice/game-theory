@@ -6,6 +6,7 @@ mod games_router {
     use game_rock_paper_scissors::GameRockPaperScissorsRef;
     use game_public_good::GamePublicGoodRef;
 
+    /// Game types.
     #[derive(scale::Encode, scale::Decode, PartialEq, Eq, Clone, Copy, Debug)]
     #[cfg_attr(
         feature = "std",
@@ -16,12 +17,19 @@ mod games_router {
         PublicGood,
     }
 
+    /// Router errors.
+    #[derive(scale::Encode, scale::Decode, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum RouterError {
+        FailedToInstantiateGame,
+        HashNotFoundForGame,
+        MustBeOwnerToSetGameHash,
+    }
+
     #[ink(storage)]
     pub struct GamesRouter {
         owner: AccountId,
-        /// The `games` field a mapping of game contract hashes to game contract addresses.
-        games: Mapping<Hash, AccountId>,
-        /// Keep track of the number of games.
+        game_hashes: Mapping<WhichGame, Hash>,
         games_count: u32,
     }
 
@@ -41,11 +49,20 @@ mod games_router {
      */
 
     impl GamesRouter {
+        /// Helper method to ensure that the caller is the contract owner.
+        fn ensure_owner(&self) -> Result<(), RouterError> {
+            if self.env().caller() != self.owner {
+                return Err(RouterError::MustBeOwnerToSetGameHash);
+            }
+
+            Ok(())
+        }
+
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
                 owner: Self::env().caller(),
-                games: Mapping::new(),
+                game_hashes: Mapping::new(),
                 games_count: 0,
             }
         }
@@ -60,11 +77,49 @@ mod games_router {
             self.owner
         }
 
-        /// A methods that adds a game and instantiates its contract.
         #[ink(message)]
-        pub fn new_game(&mut self, game_hash: Hash) {
-            assert_eq!(self.env().caller(), self.owner, "Only the owner can add games.");
+        pub fn get_game_hash(&self, which: WhichGame) -> Result<Hash, RouterError> {
+            self.game_hashes
+                .get(&which)
+                .ok_or(RouterError::HashNotFoundForGame)
+        }
+
+        #[ink(message, payable)]
+        pub fn set_game_hash(&mut self, which: WhichGame, hash: Hash) -> Result<(), RouterError> {
+            self.ensure_owner()?;
+            self.game_hashes.insert(which, &hash);
+            Ok(())
+        }
+
+        /// A methods that adds a game and instantiates its contract.
+        #[ink(message, payable)]
+        pub fn new_game(&mut self, which: WhichGame) -> Result<(), RouterError> {
+            let game_hash = self.get_game_hash(which)?;
+
+            self.games_count += 1;
             
+            match which {
+                WhichGame::RockPaperScissors => {
+                    let game = GameRockPaperScissorsRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+
+                    Ok(())
+                },
+                WhichGame::PublicGood => {
+                    let game = GamePublicGoodRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+
+                    Ok(())
+                },
+            }
         }
     }
 }
