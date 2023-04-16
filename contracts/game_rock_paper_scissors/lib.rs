@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::game_rock_paper_scissors::{GameRockPaperScissors, GameRockPaperScissorsRef};
+
 #[ink::contract]
-mod game_rock_paper_scissors {
+pub mod game_rock_paper_scissors {
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order

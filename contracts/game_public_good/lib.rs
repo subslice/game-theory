@@ -1,8 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
+
 #[ink::contract]
-mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, Error };
+pub mod game_public_good {
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError };
     use ink::prelude::vec::Vec;
 
     /// A single game storage.
@@ -76,19 +78,19 @@ mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn join(&mut self, player: AccountId) -> Result<u8, Error> {
+        fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
             if Self::env().caller() != player {
-                return Err(Error::CallerMustMatchNewPlayer)
+                return Err(GameError::CallerMustMatchNewPlayer)
             }
             
             if self.players.len() >= self.configs.max_players as usize {
-                return Err(Error::MaxPlayersReached)
+                return Err(GameError::MaxPlayersReached)
             }
 
             match self.configs.join_fee {
                 Some(fees) => {
                     if self.env().transferred_value() < fees {
-                        return Err(Error::InsufficientJoiningFees)
+                        return Err(GameError::InsufficientJoiningFees)
                     }
                 }
                 None => (),

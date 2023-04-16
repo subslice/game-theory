@@ -2,14 +2,35 @@
 
 #[ink::contract]
 mod games_router {
+    use ink::storage::Mapping;
+    use game_rock_paper_scissors::GameRockPaperScissorsRef;
+    use game_public_good::GamePublicGoodRef;
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    /// Game types.
+    #[derive(scale::Encode, scale::Decode, PartialEq, Eq, Clone, Copy, Debug)]
+    #[cfg_attr(
+        feature = "std",
+        derive(ink::storage::traits::StorageLayout, scale_info::TypeInfo)
+    )]
+    pub enum WhichGame {
+        RockPaperScissors,
+        PublicGood,
+    }
+
+    /// Router errors.
+    #[derive(scale::Encode, scale::Decode, Debug, PartialEq, Eq)]
+    #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+    pub enum RouterError {
+        FailedToInstantiateGame,
+        HashNotFoundForGame,
+        MustBeOwnerToSetGameHash,
+    }
+
     #[ink(storage)]
     pub struct GamesRouter {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+        owner: AccountId,
+        game_hashes: Mapping<WhichGame, Hash>,
+        games_count: u32,
     }
 
     /**
@@ -25,62 +46,80 @@ mod games_router {
      * 
      * 3. Code in this contract must enable instantiation of any game contract using the contract's hash.
      * 
-     * 
-     * 
      */
 
     impl GamesRouter {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
-        #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        /// Helper method to ensure that the caller is the contract owner.
+        fn ensure_owner(&self) -> Result<(), RouterError> {
+            if self.env().caller() != self.owner {
+                return Err(RouterError::MustBeOwnerToSetGameHash);
+            }
+
+            Ok(())
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
+        #[ink(constructor)]
+        pub fn new() -> Self {
+            Self {
+                owner: Self::env().caller(),
+                game_hashes: Mapping::new(),
+                games_count: 0,
+            }
+        }
+
         #[ink(constructor)]
         pub fn default() -> Self {
-            Self::new(Default::default())
+            Self::new()
         }
 
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
         #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
+        pub fn get_owner(&self) -> AccountId {
+            self.owner
         }
 
-        /// Simply returns the current value of our `bool`.
         #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let games_router = GamesRouter::default();
-            assert_eq!(games_router.get(), false);
+        pub fn get_game_hash(&self, which: WhichGame) -> Result<Hash, RouterError> {
+            self.game_hashes
+                .get(&which)
+                .ok_or(RouterError::HashNotFoundForGame)
         }
 
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut games_router = GamesRouter::new(false);
-            assert_eq!(games_router.get(), false);
-            games_router.flip();
-            assert_eq!(games_router.get(), true);
+        #[ink(message, payable)]
+        pub fn set_game_hash(&mut self, which: WhichGame, hash: Hash) -> Result<(), RouterError> {
+            self.ensure_owner()?;
+            self.game_hashes.insert(which, &hash);
+            Ok(())
+        }
+
+        /// A methods that adds a game and instantiates its contract.
+        #[ink(message, payable)]
+        pub fn new_game(&mut self, which: WhichGame) -> Result<(), RouterError> {
+            let game_hash = self.get_game_hash(which)?;
+
+            self.games_count += 1;
+            
+            match which {
+                WhichGame::RockPaperScissors => {
+                    let game = GameRockPaperScissorsRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+
+                    Ok(())
+                },
+                WhichGame::PublicGood => {
+                    let game = GamePublicGoodRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+
+                    Ok(())
+                },
+            }
         }
     }
 }
