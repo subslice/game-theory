@@ -10,7 +10,7 @@ use scale::{Encode, Decode};
 /// Game errors.
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum Error {
+pub enum GameError {
     /// Caller must match the palyer being added
     CallerMustMatchNewPlayer,
     /// No more space for players to join
@@ -87,5 +87,5 @@ pub trait GameLifecycle {
     /// 
     /// Returns the number of players.
     #[ink(message, payable)]
-    fn join(&mut self, player: AccountId) -> Result<u8, Error>;
+    fn join(&mut self, player: AccountId) -> Result<u8, GameError>;
 }
