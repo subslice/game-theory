@@ -2,14 +2,27 @@
 
 #[ink::contract]
 mod games_router {
+    use ink::storage::Mapping;
+    use game_rock_paper_scissors::GameRockPaperScissorsRef;
+    use game_public_good::GamePublicGoodRef;
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    #[derive(scale::Encode, scale::Decode, PartialEq, Eq, Clone, Copy, Debug)]
+    #[cfg_attr(
+        feature = "std",
+        derive(ink::storage::traits::StorageLayout, scale_info::TypeInfo)
+    )]
+    pub enum WhichGame {
+        RockPaperScissors,
+        PublicGood,
+    }
+
     #[ink(storage)]
     pub struct GamesRouter {
-        /// Stores a single `bool` value on the storage.
-        value: bool,
+        owner: AccountId,
+        /// The `games` field a mapping of game contract hashes to game contract addresses.
+        games: Mapping<Hash, AccountId>,
+        /// Keep track of the number of games.
+        games_count: u32,
     }
 
     /**
@@ -25,62 +38,33 @@ mod games_router {
      * 
      * 3. Code in this contract must enable instantiation of any game contract using the contract's hash.
      * 
-     * 
-     * 
      */
 
     impl GamesRouter {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new() -> Self {
+            Self {
+                owner: Self::env().caller(),
+                games: Mapping::new(),
+                games_count: 0,
+            }
         }
 
-        /// Constructor that initializes the `bool` value to `false`.
-        ///
-        /// Constructors can delegate to other constructors.
         #[ink(constructor)]
         pub fn default() -> Self {
-            Self::new(Default::default())
+            Self::new()
         }
 
-        /// A message that can be called on instantiated contracts.
-        /// This one flips the value of the stored `bool` from `true`
-        /// to `false` and vice versa.
         #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
+        pub fn get_owner(&self) -> AccountId {
+            self.owner
         }
 
-        /// Simply returns the current value of our `bool`.
+        /// A methods that adds a game and instantiates its contract.
         #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
-    }
-
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
-    #[cfg(test)]
-    mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
-        use super::*;
-
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let games_router = GamesRouter::default();
-            assert_eq!(games_router.get(), false);
-        }
-
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut games_router = GamesRouter::new(false);
-            assert_eq!(games_router.get(), false);
-            games_router.flip();
-            assert_eq!(games_router.get(), true);
+        pub fn new_game(&mut self, game_hash: Hash) {
+            assert_eq!(self.env().caller(), self.owner, "Only the owner can add games.");
+            
         }
     }
 }

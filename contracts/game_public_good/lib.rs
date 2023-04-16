@@ -1,7 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
+
 #[ink::contract]
-mod game_public_good {
+pub mod game_public_good {
     use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, Error };
     use ink::prelude::vec::Vec;
 
