@@ -33,6 +33,8 @@ pub enum GameError {
     NoCurrentRound,
     /// Invalid state to start the game with
     InvalidGameStartState,
+    /// Invalid value payed to play a round
+    InvalidRoundContribution,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
@@ -59,7 +61,7 @@ pub struct GameRound {
     pub id: u8,
     pub status: RoundStatus,
     pub player_commits: Vec<(AccountId, Hash)>,
-    pub player_reveals: Vec<(AccountId, (u8, u8))>,
+    pub player_reveals: Vec<(AccountId, (u128, u128))>,
     pub player_contributions: Vec<(AccountId, u128)>,
     pub total_contribution: u128,
     pub total_reward: u128,
@@ -124,7 +126,7 @@ pub trait GameLifecycle {
     /// prepares the next round if max rounds not reached
     /// emits a relevant event
     #[ink(message, payable)]
-    fn revealRound(&mut self, reveal: (u8, u8)) -> Result<(), GameError>;
+    fn revealRound(&mut self, reveal: (u128, u128)) -> Result<(), GameError>;
 
     /// claims rewards of the round (if applicable and all players have revealed)
     /// prepares the next round

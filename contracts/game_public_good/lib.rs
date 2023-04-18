@@ -47,7 +47,7 @@ pub mod game_public_good {
                 max_players: 10,
                 min_players: 2,
                 min_round_contribution: None,
-                max_round_contribution: None,
+                max_round_contribution: Some(1_000),
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
@@ -130,12 +130,20 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn playRound(&mut self, commitment: Hash) -> Result<(), GameError> {
-            match (self.status, self.current_round.is_none()) {
-                (status, _) if status != GameStatus::Started => {
+            match (self.status, self.current_round.is_none(), self.env().transferred_value()) {
+                (status, _, _) if status != GameStatus::Started => {
                     return Err(GameError::GameNotStarted)
                 },
-                (_, true) => {
+                (_, true, _) => {
                     return Err(GameError::NoCurrentRound)
+                },
+                (_, _, value) if Some(value) < self.configs.max_round_contribution => {
+                    // NOTE: the issue here is since this game is publicgood, some amount has to be
+                    // contributed to the pot. So, we need to check if the player has contributed
+                    // that amount. But we also don't want to reveal the contribution :)
+                    // one way is to have the payable amount always be fixed and be maxed out
+                    // while the hashed commitment contains the real amount to be contributed.
+                    return Err(GameError::InvalidRoundContribution)
                 },
                 _ => ()
             }
@@ -168,10 +176,11 @@ pub mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn revealRound(&mut self, reveal: (u8, u8)) -> Result<(), GameError> {
+        fn revealRound(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
             let caller = self.env().caller();
+            let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default();
-            ink::env::hash_bytes::<Blake2x256>(&[reveal.0, reveal.1], &mut output);
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
 
             let player_commitment = self.current_round
                 .as_ref()
