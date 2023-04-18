@@ -103,7 +103,7 @@ pub mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn startGame(&mut self) -> Result<(), GameError> {
+        fn start_game(&mut self) -> Result<(), GameError> {
             match (self.players.len(), self.status) {
                 (_, status) if status != GameStatus::Initialized => {
                     return Err(GameError::InvalidGameStartState)
@@ -129,7 +129,7 @@ pub mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn playRound(&mut self, commitment: Hash) -> Result<(), GameError> {
+        fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
             match (self.status, self.current_round.is_none(), self.env().transferred_value()) {
                 (status, _, _) if status != GameStatus::Started => {
                     return Err(GameError::GameNotStarted)
@@ -176,7 +176,7 @@ pub mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn revealRound(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
+        fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
             let caller = self.env().caller();
             let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default();
@@ -211,17 +211,17 @@ pub mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn completeRound(&mut self) -> Result<(), GameError> {
+        fn complete_round(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
 
         #[ink(message, payable)]
-        fn forceCompleteRound(&mut self) -> Result<(), GameError> {
+        fn force_complete_round(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
 
         #[ink(message, payable)]
-        fn endGame(&mut self) -> Result<(), GameError> {
+        fn end_game(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
     }
@@ -297,7 +297,7 @@ pub mod game_public_good {
             assert!(game_public_good.join(accounts.bob).is_ok());
             
             // can start the game when there are enough players
-            match game_public_good.startGame() {
+            match game_public_good.start_game() {
                 Err(error) => {
                     println!("{:?}", error);
                     assert!(false);
@@ -320,9 +320,9 @@ pub mod game_public_good {
             assert!(game_public_good.join(accounts.bob).is_ok());
             
             // can start the game when there are enough players
-            assert!(game_public_good.startGame().is_ok());
+            assert!(game_public_good.start_game().is_ok());
             // cannot start again
-            assert_eq!(game_public_good.startGame().err(), Some(GameError::InvalidGameStartState));
+            assert_eq!(game_public_good.start_game().err(), Some(GameError::InvalidGameStartState));
         }
 
         /// A player cannot start a game that doesn't have enough players.
@@ -337,7 +337,7 @@ pub mod game_public_good {
             assert!(game_public_good.join(accounts.alice).is_ok());
             
             // cannot start, not enough players
-            assert_eq!(game_public_good.startGame().err(), Some(GameError::NotEnoughPlayers));
+            assert_eq!(game_public_good.start_game().err(), Some(GameError::NotEnoughPlayers));
         }
     }
 
