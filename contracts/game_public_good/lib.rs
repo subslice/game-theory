@@ -130,12 +130,14 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn playRound(&mut self, commitment: Hash) -> Result<(), GameError> {
-            if self.status != GameStatus::Started {
-                return Err(GameError::GameNotStarted)
-            }
-
-            if self.current_round.is_none() {
-                return Err(GameError::NoCurrentRound)
+            match (self.status, self.current_round.is_none()) {
+                (status, _) if status != GameStatus::Started => {
+                    return Err(GameError::GameNotStarted)
+                },
+                (_, true) => {
+                    return Err(GameError::NoCurrentRound)
+                },
+                _ => ()
             }
 
             let caller = self.env().caller();
