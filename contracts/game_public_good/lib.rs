@@ -140,26 +140,28 @@ pub mod game_public_good {
 
             let caller = self.env().caller();
             let value = self.env().transferred_value();
+            let current_round = self.current_round.as_mut().unwrap();
 
             // store the commit
-            self.current_round.as_mut().unwrap().player_commits.push((
+            current_round.player_commits.push((
                 caller.clone(),
                 commitment,
             ));
 
             // keep track of round contribution(s)
-            self.current_round.as_mut().unwrap().player_contributions.push((
+            current_round.player_contributions.push((
                 caller.clone(),
                 value,
             ));
 
-            self.current_round.as_mut().unwrap().total_contribution += value;
+            current_round.total_contribution += value;
 
             // check if all players have committed
-            if self.current_round.as_ref().unwrap().player_commits.len() == self.players.len() {
+            if current_round.player_commits.len() == self.players.len() {
                 // TODO: emit AllPlayersCommitted event
             }
 
+            self.current_round = Some(current_round.clone());
             Ok(())
         }
 
