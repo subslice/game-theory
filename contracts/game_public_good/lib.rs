@@ -4,8 +4,9 @@ pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
 
 #[ink::contract]
 pub mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError };
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus };
     use ink::prelude::vec::Vec;
+    use ink::env::hash::{Blake2x256, HashOutput};
 
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
@@ -51,6 +52,7 @@ pub mod game_public_good {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             })
         }
     }
@@ -79,7 +81,7 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
-            if Self::env().caller() != player {
+            if self.env().caller() != player {
                 return Err(GameError::CallerMustMatchNewPlayer)
             }
             
@@ -98,6 +100,116 @@ pub mod game_public_good {
 
             self.players.push(player);
             Ok(self.players.len() as u8)
+        }
+
+        #[ink(message, payable)]
+        fn startGame(&mut self) -> Result<(), GameError> {
+            match (self.players.len(), self.status) {
+                (_, status) if status != GameStatus::Initialized => {
+                    return Err(GameError::InvalidGameStartState)
+                },
+                (players, _) if players < self.configs.min_players as usize => {
+                    return Err(GameError::NotEnoughPlayers)
+                },
+                _ => (),
+            }
+
+            self.current_round = Some(GameRound {
+                id: self.next_round_id,
+                status: RoundStatus::Ready,
+                player_commits: Vec::new(),
+                player_reveals: Vec::new(),
+                player_contributions: Vec::new(),
+                total_contribution: 0,
+                total_reward: 0,
+            });
+            self.status = GameStatus::Started;
+            self.next_round_id += 1;
+            Ok(())
+        }
+
+        #[ink(message, payable)]
+        fn playRound(&mut self, commitment: Hash) -> Result<(), GameError> {
+            if self.status != GameStatus::Started {
+                return Err(GameError::GameNotStarted)
+            }
+
+            if self.current_round.is_none() {
+                return Err(GameError::NoCurrentRound)
+            }
+
+            let caller = self.env().caller();
+            let value = self.env().transferred_value();
+
+            // store the commit
+            self.current_round.as_mut().unwrap().player_commits.push((
+                caller.clone(),
+                commitment,
+            ));
+
+            // keep track of round contribution(s)
+            self.current_round.as_mut().unwrap().player_contributions.push((
+                caller.clone(),
+                value,
+            ));
+
+            self.current_round.as_mut().unwrap().total_contribution += value;
+
+            // check if all players have committed
+            if self.current_round.as_ref().unwrap().player_commits.len() == self.players.len() {
+                // TODO: emit AllPlayersCommitted event
+            }
+
+            Ok(())
+        }
+
+        #[ink(message, payable)]
+        fn revealRound(&mut self, reveal: (u8, u8)) -> Result<(), GameError> {
+            let caller = self.env().caller();
+            let mut output = <Blake2x256 as HashOutput>::Type::default();
+            ink::env::hash_bytes::<Blake2x256>(&[reveal.0, reveal.1], &mut output);
+
+            let player_commitment = self.current_round
+                .as_ref()
+                .unwrap()
+                .player_commits
+                .iter()
+                .find(|(player, _)| player == &caller);
+
+            // check if the reveal is valid
+            match player_commitment {
+                Some((_, commitment)) => {
+                    if commitment != &output.into() {
+                        return Err(GameError::InvalidReveal)
+                    }
+                }
+                None => return Err(GameError::CommitmentNotFound),
+            }
+
+            // store the reveal
+            self.current_round.as_mut().unwrap().player_reveals.push((
+                caller,
+                reveal,
+            ));
+
+            // TODO: emit an event for the reveal
+
+            Ok(())
+        }
+
+        #[ink(message, payable)]
+        fn completeRound(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn forceCompleteRound(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn endGame(&mut self) -> Result<(), GameError> {
+            todo!("implement")
         }
     }
 
@@ -126,6 +238,7 @@ pub mod game_public_good {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             });
             assert_eq!(game_public_good.players, vec![]);
             assert_eq!(game_public_good.get_current_round(), None);
@@ -155,6 +268,63 @@ pub mod game_public_good {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
             assert!(game_public_good.join(accounts.bob).is_err());
+        }
+
+        /// A player can start the game.
+        #[ink::test]
+        fn player_can_start_game() {
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GamePublicGood::default();
+            
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            assert!(game_public_good.join(accounts.alice).is_ok());
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+            assert!(game_public_good.join(accounts.bob).is_ok());
+            
+            // can start the game when there are enough players
+            match game_public_good.startGame() {
+                Err(error) => {
+                    println!("{:?}", error);
+                    assert!(false);
+                },
+                Ok(_) => assert!(true),
+            }
+        }
+
+        /// A player cannot start a game that is already started.
+        #[ink::test]
+        fn player_cannot_start_already_started_game() {
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GamePublicGood::default();
+            
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            assert!(game_public_good.join(accounts.alice).is_ok());
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+            assert!(game_public_good.join(accounts.bob).is_ok());
+            
+            // can start the game when there are enough players
+            assert!(game_public_good.startGame().is_ok());
+            // cannot start again
+            assert_eq!(game_public_good.startGame().err(), Some(GameError::InvalidGameStartState));
+        }
+
+        /// A player cannot start a game that doesn't have enough players.
+        #[ink::test]
+        fn game_cannot_start_without_enough_players() {
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GamePublicGood::default();
+            
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            assert!(game_public_good.join(accounts.alice).is_ok());
+            
+            // cannot start, not enough players
+            assert_eq!(game_public_good.startGame().err(), Some(GameError::NotEnoughPlayers));
         }
     }
 

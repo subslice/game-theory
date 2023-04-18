@@ -21,8 +21,18 @@ pub enum GameError {
     RoundNotExpired,
     /// No commitment made by player for the current round
     CommitmentNotFound,
+    /// The commitment doesn't match the revealed value
+    InvalidReveal,
     /// Round cannot be closed
     FailedToCloseRound,
+    /// The game hasn't reached enough players
+    NotEnoughPlayers,
+    /// Game status isn't set to Started
+    GameNotStarted,
+    /// The current round has not been set, i.e. game hasn't started
+    NoCurrentRound,
+    /// Invalid state to start the game with
+    InvalidGameStartState,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
@@ -46,10 +56,10 @@ pub enum RoundStatus {
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameRound {
-    pub round_number: u32,
+    pub id: u8,
     pub status: RoundStatus,
-    pub player_commits: Vec<(AccountId, u128)>,
-    pub player_reveals: Vec<(AccountId, u128)>,
+    pub player_commits: Vec<(AccountId, Hash)>,
+    pub player_reveals: Vec<(AccountId, (u8, u8))>,
     pub player_contributions: Vec<(AccountId, u128)>,
     pub total_contribution: u128,
     pub total_reward: u128,
@@ -67,6 +77,7 @@ pub struct GameConfigs {
     pub round_timeout: Option<u32>,
     pub max_rounds: Option<u32>,
     pub join_fee: Option<u128>,
+    pub is_rounds_based: bool,
 }
 
 /// Defines the basic game lifecycle methods.
@@ -113,7 +124,7 @@ pub trait GameLifecycle {
     /// prepares the next round if max rounds not reached
     /// emits a relevant event
     #[ink(message, payable)]
-    fn revealRound(&mut self, reveal: ([u8; 32], u8)) -> Result<(), GameError>;
+    fn revealRound(&mut self, reveal: (u8, u8)) -> Result<(), GameError>;
 
     /// claims rewards of the round (if applicable and all players have revealed)
     /// prepares the next round
@@ -127,4 +138,11 @@ pub trait GameLifecycle {
     /// emits a relevant event
     #[ink(message, payable)]
     fn forceCompleteRound(&mut self) -> Result<(), GameError>;
+
+    /// closes the game and terminates the contract
+    /// can only be done once all the rounds have been played
+    /// releases the joining fees (unless penalties are incurred)
+    /// emits a relevant event
+    #[ink(message, payable)]
+    fn endGame(&mut self) -> Result<(), GameError>;
 }
