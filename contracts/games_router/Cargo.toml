@@ -5,10 +5,12 @@ authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "4.0.0-beta", default-features = false }
-
+ink = { version = "4.1", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+traits = { path = "../traits", default-features = false }
+game_public_good = { path = "../game_public_good", default-features = false, features = ["ink-as-dependency"] }
+game_rock_paper_scissors = { path = "../game_rock_paper_scissors", default-features = false, features = ["ink-as-dependency"] }
 
 [lib]
 name = "games_router"
@@ -24,5 +26,8 @@ std = [
     "ink/std",
     "scale/std",
     "scale-info/std",
+    "traits/std",
+    "game_public_good/std",
+    "game_rock_paper_scissors/std",
 ]
 ink-as-dependency = []

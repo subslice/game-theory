@@ -1,8 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
+
 #[ink::contract]
-mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, Error };
+pub mod game_public_good {
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError };
     use ink::prelude::vec::Vec;
 
     /// A single game storage.
@@ -76,19 +78,19 @@ mod game_public_good {
         }
 
         #[ink(message, payable)]
-        fn join(&mut self, player: AccountId) -> Result<u8, Error> {
+        fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
             if Self::env().caller() != player {
-                return Err(Error::CallerMustMatchNewPlayer)
+                return Err(GameError::CallerMustMatchNewPlayer)
             }
             
             if self.players.len() >= self.configs.max_players as usize {
-                return Err(Error::MaxPlayersReached)
+                return Err(GameError::MaxPlayersReached)
             }
 
             match self.configs.join_fee {
                 Some(fees) => {
                     if self.env().transferred_value() < fees {
-                        return Err(Error::InsufficientJoiningFees)
+                        return Err(GameError::InsufficientJoiningFees)
                     }
                 }
                 None => (),
@@ -99,9 +101,9 @@ mod game_public_good {
         }
     }
 
+    /// Unit tests.
     #[cfg(test)]
     mod tests {
-        /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
 
         /// Default constructor works.
@@ -153,6 +155,35 @@ mod game_public_good {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
             assert!(game_public_good.join(accounts.bob).is_err());
+        }
+    }
+
+    /// On-chain (E2E) tests.
+    #[cfg(all(test, feature = "e2e-tests"))]
+    mod e2e_tests {
+        use super::*;
+        use ink_e2e::build_message;
+        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+        // Default constructor works.
+        #[ink_e2e::test]
+        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
+            let constructor = GamePublicGoodRef::default();
+
+            // When
+            let contract_account_id = client
+                .instantiate("game_public_good", &ink_e2e::alice(), constructor, 0, None)
+                .await
+                .expect("instantiation failed")
+                .account_id;
+
+            // Then
+            let get_players = build_message::<GamePublicGoodRef>(contract_account_id.clone())
+                .call(|test| test.get_players());
+            let get_result = client.call_dry_run(&ink_e2e::alice(), &get_players, 0, None).await;
+            assert_eq!(get_result.return_value(), vec![]);
+
+            Ok(())
         }
     }
 }
