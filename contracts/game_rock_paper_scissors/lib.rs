@@ -4,8 +4,8 @@ pub use self::game_rock_paper_scissors::{GameRockPaperScissors, GameRockPaperSci
 
 #[ink::contract]
 pub mod game_rock_paper_scissors {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError };
     use ink::prelude::vec::Vec;
+    use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus};
 
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
@@ -79,17 +79,17 @@ pub mod game_rock_paper_scissors {
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
             if Self::env().caller() != player {
-                return Err(GameError::CallerMustMatchNewPlayer)
+                return Err(GameError::CallerMustMatchNewPlayer);
             }
 
             if self.players.len() >= self.configs.max_players as usize {
-                return Err(GameError::MaxPlayersReached)
+                return Err(GameError::MaxPlayersReached);
             }
 
             match self.configs.join_fee {
                 Some(fees) => {
                     if self.env().transferred_value() < fees {
-                        return Err(GameError::InsufficientJoiningFees)
+                        return Err(GameError::InsufficientJoiningFees);
                     }
                 }
                 None => (),
@@ -112,16 +112,47 @@ pub mod game_rock_paper_scissors {
         #[ink::test]
         fn default_works() {
             let game_rock_paper_scissors = GameRockPaperScissors::default();
-            assert_eq!(game_rock_paper_scissors.get(), false);
+            assert_eq!(game_rock_paper_scissors.players, vec![]);
+            assert_eq!(game_rock_paper_scissors.get_current_round(), None)
         }
 
         /// We test a simple use case of our contract.
         #[ink::test]
-        fn it_works() {
-            let mut game_rock_paper_scissors = GameRockPaperScissors::new(false);
-            assert_eq!(game_rock_paper_scissors.get(), false);
-            game_rock_paper_scissors.flip();
-            assert_eq!(game_rock_paper_scissors.get(), true);
+        fn new_works() {
+            let mut game_rock_paper_scissors = GameRockPaperScissors::new(GameConfigs {
+                max_players: 2,
+                min_players: 2,
+                min_round_contribution: None,
+                max_round_contribution: None,
+                post_round_actions: false,
+                round_timeout: None,
+                max_rounds: None,
+                join_fee: None,
+            });
+        }
+
+        /// A new player can join the game.
+        #[ink::test]
+        fn player_can_join() {
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GameRockPaperScissors::default();
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            // can join when the caller is alice joining as alice (own account)
+            assert!(game_public_good.join(accounts.alice).is_ok());
+        }
+
+        /// A new player cannot add someone else to the game.
+        #[ink::test]
+        fn player_must_join_as_self() {
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GameRockPaperScissors::default();
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            // can't join when the caller is alice trying to add bob's account
+            assert!(game_public_good.join(accounts.bob).is_err());
         }
     }
 }
