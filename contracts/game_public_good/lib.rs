@@ -89,10 +89,6 @@ pub mod game_public_good {
                 return Err(GameError::MaxPlayersReached)
             }
 
-            if self.players.len() >= self.configs.max_players as usize {
-                return Err(GameError::MaxPlayersReached);
-            }
-
             if let Some(fees) = self.configs.join_fee {
                 if self.env().transferred_value() < fees {
                     return Err(GameError::InsufficientJoiningFees);
