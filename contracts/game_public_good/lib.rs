@@ -51,6 +51,7 @@ pub mod game_public_good {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             })
         }
     }
@@ -96,6 +97,36 @@ pub mod game_public_good {
             self.players.push(player);
             Ok(self.players.len() as u8)
         }
+
+        #[ink(message, payable)]
+        fn start_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn force_complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn end_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
     }
 
     /// Unit tests.
@@ -123,6 +154,7 @@ pub mod game_public_good {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             });
             assert_eq!(game_public_good.players, vec![]);
             assert_eq!(game_public_good.get_current_round(), None);
