@@ -51,6 +51,7 @@ pub mod game_rock_paper_scissors {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             })
         }
     }
@@ -95,6 +96,36 @@ pub mod game_rock_paper_scissors {
             self.players.push(player);
             Ok(self.players.len() as u8)
         }
+
+        #[ink(message, payable)]
+        fn start_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn force_complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn end_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
@@ -125,6 +156,7 @@ pub mod game_rock_paper_scissors {
                 round_timeout: None,
                 max_rounds: None,
                 join_fee: None,
+                is_rounds_based: false,
             });
 
             assert_eq!(game_rock_paper_scissors.players, vec![]);

@@ -104,10 +104,10 @@ pub mod game_public_good {
             match (self.players.len(), self.status) {
                 (_, status) if status != GameStatus::Initialized => {
                     return Err(GameError::InvalidGameStartState)
-                },
+                }
                 (players, _) if players < self.configs.min_players as usize => {
                     return Err(GameError::NotEnoughPlayers)
-                },
+                }
                 _ => (),
             }
 
@@ -195,6 +195,8 @@ pub mod game_public_good {
                 }
                 None => return Err(GameError::CommitmentNotFound),
             }
+
+            // self.env().transfer(caller, self.configs.max_round_contribution.unwrap() - reveal.0);
 
             // store the reveal
             self.current_round.as_mut().unwrap().player_reveals.push((
