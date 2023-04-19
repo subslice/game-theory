@@ -4,8 +4,8 @@ pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
 
 #[ink::contract]
 pub mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError };
     use ink::prelude::vec::Vec;
+    use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus};
 
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
@@ -26,7 +26,7 @@ pub mod game_public_good {
     }
 
     impl GamePublicGood {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
+        /// Constructor that initializes the GamePublicGood struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
             Self {
@@ -61,7 +61,7 @@ pub mod game_public_good {
         fn get_configs(&self) -> GameConfigs {
             self.configs.clone()
         }
-        
+
         #[ink(message)]
         fn get_players(&self) -> Vec<AccountId> {
             self.players.clone()
@@ -69,7 +69,7 @@ pub mod game_public_good {
 
         #[ink(message)]
         fn get_status(&self) -> GameStatus {
-            self.status.clone()
+            self.status
         }
 
         #[ink(message)]
@@ -80,20 +80,17 @@ pub mod game_public_good {
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
             if Self::env().caller() != player {
-                return Err(GameError::CallerMustMatchNewPlayer)
-            }
-            
-            if self.players.len() >= self.configs.max_players as usize {
-                return Err(GameError::MaxPlayersReached)
+                return Err(GameError::CallerMustMatchNewPlayer);
             }
 
-            match self.configs.join_fee {
-                Some(fees) => {
-                    if self.env().transferred_value() < fees {
-                        return Err(GameError::InsufficientJoiningFees)
-                    }
+            if self.players.len() >= self.configs.max_players as usize {
+                return Err(GameError::MaxPlayersReached);
+            }
+
+            if let Some(fees) = self.configs.join_fee {
+                if self.env().transferred_value() < fees {
+                    return Err(GameError::InsufficientJoiningFees);
                 }
-                None => (),
             }
 
             self.players.push(player);
@@ -134,11 +131,10 @@ pub mod game_public_good {
         /// A new player can join the game.
         #[ink::test]
         fn player_can_join() {
-            let accounts = 
-                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
             let mut game_public_good = GamePublicGood::default();
-            
+
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can join when the caller is alice joining as alice (own account)
             assert!(game_public_good.join(accounts.alice).is_ok());
@@ -147,11 +143,10 @@ pub mod game_public_good {
         /// A new player cannot add someone else to the game.
         #[ink::test]
         fn player_must_join_as_self() {
-            let accounts = 
-                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
             let mut game_public_good = GamePublicGood::default();
-            
+
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
             assert!(game_public_good.join(accounts.bob).is_err());
@@ -180,7 +175,9 @@ pub mod game_public_good {
             // Then
             let get_players = build_message::<GamePublicGoodRef>(contract_account_id.clone())
                 .call(|test| test.get_players());
-            let get_result = client.call_dry_run(&ink_e2e::alice(), &get_players, 0, None).await;
+            let get_result = client
+                .call_dry_run(&ink_e2e::alice(), &get_players, 0, None)
+                .await;
             assert_eq!(get_result.return_value(), vec![]);
 
             Ok(())
