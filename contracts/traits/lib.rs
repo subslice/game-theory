@@ -2,7 +2,6 @@
 
 use ink::primitives::{AccountId, Hash};
 use ink::prelude::vec::Vec;
-use ink::primitives::AccountId;
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 
