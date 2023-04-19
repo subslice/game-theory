@@ -26,7 +26,7 @@ pub mod game_public_good {
     }
 
     impl GamePublicGood {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
+        /// Constructor that initializes the GamePublicGood struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
             Self {
