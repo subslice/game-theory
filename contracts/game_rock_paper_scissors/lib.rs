@@ -86,13 +86,10 @@ pub mod game_rock_paper_scissors {
                 return Err(GameError::MaxPlayersReached);
             }
 
-            match self.configs.join_fee {
-                Some(fees) => {
-                    if self.env().transferred_value() < fees {
-                        return Err(GameError::InsufficientJoiningFees);
-                    }
+            if let Some(fees) = self.configs.join_fee {
+                if self.env().transferred_value() < fees {
+                    return Err(GameError::InsufficientJoiningFees);
                 }
-                None => (),
             }
 
             self.players.push(player);
