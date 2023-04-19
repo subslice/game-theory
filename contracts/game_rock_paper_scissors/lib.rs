@@ -68,7 +68,7 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message)]
         fn get_status(&self) -> GameStatus {
-            self.status.clone()
+            self.status
         }
 
         #[ink(message)]
@@ -119,7 +119,7 @@ pub mod game_rock_paper_scissors {
         /// We test a simple use case of our contract.
         #[ink::test]
         fn new_works() {
-            let mut game_rock_paper_scissors = GameRockPaperScissors::new(GameConfigs {
+            let game_rock_paper_scissors = GameRockPaperScissors::new(GameConfigs {
                 max_players: 2,
                 min_players: 2,
                 min_round_contribution: None,
@@ -129,6 +129,9 @@ pub mod game_rock_paper_scissors {
                 max_rounds: None,
                 join_fee: None,
             });
+
+            assert_eq!(game_rock_paper_scissors.players, vec![]);
+            assert_eq!(game_rock_paper_scissors.get_current_round(), None);
         }
 
         /// A new player can join the game.
@@ -136,11 +139,11 @@ pub mod game_rock_paper_scissors {
         fn player_can_join() {
             let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GameRockPaperScissors::default();
+            let mut game_rock_paper_scissors = GameRockPaperScissors::default();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can join when the caller is alice joining as alice (own account)
-            assert!(game_public_good.join(accounts.alice).is_ok());
+            assert!(game_rock_paper_scissors.join(accounts.alice).is_ok());
         }
 
         /// A new player cannot add someone else to the game.
@@ -148,11 +151,11 @@ pub mod game_rock_paper_scissors {
         fn player_must_join_as_self() {
             let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GameRockPaperScissors::default();
+            let mut game_rock_paper_scissors = GameRockPaperScissors::default();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
-            assert!(game_public_good.join(accounts.bob).is_err());
+            assert!(game_rock_paper_scissors.join(accounts.bob).is_err());
         }
     }
 }
