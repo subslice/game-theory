@@ -2,7 +2,6 @@
 
 use ink::primitives::{AccountId, Hash};
 use ink::prelude::vec::Vec;
-use ink::primitives::AccountId;
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 
@@ -22,8 +21,20 @@ pub enum GameError {
     RoundNotExpired,
     /// No commitment made by player for the current round
     CommitmentNotFound,
+    /// The commitment doesn't match the revealed value
+    InvalidReveal,
     /// Round cannot be closed
     FailedToCloseRound,
+    /// The game hasn't reached enough players
+    NotEnoughPlayers,
+    /// Game status isn't set to Started
+    GameNotStarted,
+    /// The current round has not been set, i.e. game hasn't started
+    NoCurrentRound,
+    /// Invalid state to start the game with
+    InvalidGameStartState,
+    /// Invalid value payed to play a round
+    InvalidRoundContribution,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
@@ -47,10 +58,10 @@ pub enum RoundStatus {
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameRound {
-    pub round_number: u32,
+    pub id: u8,
     pub status: RoundStatus,
-    pub player_commits: Vec<(AccountId, u128)>,
-    pub player_reveals: Vec<(AccountId, u128)>,
+    pub player_commits: Vec<(AccountId, Hash)>,
+    pub player_reveals: Vec<(AccountId, (u128, u128))>,
     pub player_contributions: Vec<(AccountId, u128)>,
     pub total_contribution: u128,
     pub total_reward: u128,
@@ -68,6 +79,7 @@ pub struct GameConfigs {
     pub round_timeout: Option<u32>,
     pub max_rounds: Option<u32>,
     pub join_fee: Option<u128>,
+    pub is_rounds_based: bool,
 }
 
 /// Defines the basic game lifecycle methods.
@@ -100,32 +112,39 @@ pub trait GameLifecycle {
     /// only works once, fails on subsequent calls (since the state has changed)
     /// emits a relevant event (all events should include some game ID for the UIs that are listening)
     #[ink(message, payable)]
-    fn startGame(&mut self) -> Result<(), GameError>;
+    fn start_game(&mut self) -> Result<(), GameError>;
 
     /// Makes a commitment to the current round by the player who called the method
     /// The payed amount is the round contribution, to be validated based on configs
     /// Must be recorded in the GameRound storage
     /// emits a relevant event (should include the total # of commitments in the round, helps UI know if everyone played)
     #[ink(message, payable)]
-    fn playRound(&mut self, commitment: Hash) -> Result<(), GameError>;
+    fn play_round(&mut self, commitment: Hash) -> Result<(), GameError>;
 
     /// receives data which if hashed must match the commitment for the round made earlier
     /// throws an error if the round has no commitment for the caller
     /// prepares the next round if max rounds not reached
     /// emits a relevant event
     #[ink(message, payable)]
-    fn revealRound(&mut self, reveal: ([u8; 32], u8)) -> Result<(), GameError>;
+    fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError>;
 
     /// claims rewards of the round (if applicable and all players have revealed)
     /// prepares the next round
     /// emits a relevant event
     #[ink(message, payable)]
-    fn completeRound(&mut self) -> Result<(), GameError>;
+    fn complete_round(&mut self) -> Result<(), GameError>;
 
     /// succeeds only if the caller has already made a commitment
     /// succeeds only if the round expired (passed the block timeout in config // should default to 10 or 20 blocks if None)
     /// a penalty is incurred by the players who did not play (joining fee is not returned)
     /// emits a relevant event
     #[ink(message, payable)]
-    fn forceCompleteRound(&mut self) -> Result<(), GameError>;
+    fn force_complete_round(&mut self) -> Result<(), GameError>;
+
+    /// closes the game and terminates the contract
+    /// can only be done once all the rounds have been played
+    /// releases the joining fees (unless penalties are incurred)
+    /// emits a relevant event
+    #[ink(message, payable)]
+    fn end_game(&mut self) -> Result<(), GameError>;
 }
