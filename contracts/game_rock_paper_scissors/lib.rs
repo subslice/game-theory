@@ -5,7 +5,7 @@ pub use self::game_rock_paper_scissors::{GameRockPaperScissors, GameRockPaperSci
 #[ink::contract]
 pub mod game_rock_paper_scissors {
     use ink::prelude::vec::Vec;
-    use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus};
+    use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus, RoundStatus};
 
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
@@ -99,12 +99,47 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
-            todo!("implement")
+            if self.players.len() < self.configs.min_players.into() {
+                return Err(GameError::NotEnoughPlayers)
+            }
+
+            if self.status != GameStatus::Initialized {
+                return Err(GameError::InvalidGameStartState)
+            }
+
+            self.current_round = Some(GameRound {
+                id: self.next_round_id,
+                status: RoundStatus::Ready,
+                player_commits: Vec::new(),
+                player_reveals: Vec::new(),
+                player_contributions: Vec::new(),
+                total_contribution: 0,
+                total_reward: 0,
+            });
+
+            self.status = GameStatus::Started;
+            self.next_round_id += 1;
+
+            Ok(())
         }
 
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
-            todo!("implement")
+            if self.status != GameStatus::Started {
+                return Err(GameError::GameNotStarted)
+            }
+
+            if self.current_round.is_none() {
+                return Err(GameError::NoCurrentRound)
+            }
+
+            if let Some(min_round_contribution) = self.configs.min_round_contribution {
+                if min_round_contribution > self.env().transferred_value() {
+                    return Err(GameError::InvalidRoundContribution)
+                }
+            }
+
+            Ok(())
         }
 
         #[ink(message, payable)]
