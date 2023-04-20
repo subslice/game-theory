@@ -30,6 +30,15 @@ pub mod game_public_good {
         /// Constructor that initializes the GamePublicGood struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
+            // basic sanity checks related to round contributions for this game
+            if configs.max_round_contribution.is_none() {
+                panic!("The max_round_contribution must be set");
+            } else if configs.min_round_contribution.is_none() {
+                panic!("The min_round_contribution must be set");
+            } else if configs.max_round_contribution.unwrap() < configs.min_round_contribution.unwrap() {
+                panic!("The max_round_contribution must be greater than the min_round_contribution");
+            }
+            
             Self {
                 players: Vec::new(),
                 status: GameStatus::Initialized,
@@ -46,7 +55,7 @@ pub mod game_public_good {
             Self::new(GameConfigs {
                 max_players: 10,
                 min_players: 2,
-                min_round_contribution: None,
+                min_round_contribution: Some(100),
                 max_round_contribution: Some(1_000),
                 post_round_actions: false,
                 round_timeout: None,
@@ -272,8 +281,8 @@ pub mod game_public_good {
             let game_public_good = GamePublicGood::new(GameConfigs {
                 max_players: 10,
                 min_players: 2,
-                min_round_contribution: None,
-                max_round_contribution: None,
+                min_round_contribution: Some(100),
+                max_round_contribution: Some(1_000),
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
