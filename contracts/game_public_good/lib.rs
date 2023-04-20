@@ -71,7 +71,7 @@ pub mod game_public_good {
 
         #[ink(message)]
         fn get_status(&self) -> GameStatus {
-            self.status
+            self.status.clone()
         }
 
         #[ink(message)]
@@ -122,6 +122,9 @@ pub mod game_public_good {
             });
             self.status = GameStatus::Started;
             self.next_round_id += 1;
+
+            // TODO: emit event
+
             Ok(())
         }
 
@@ -196,7 +199,12 @@ pub mod game_public_good {
                 None => return Err(GameError::CommitmentNotFound),
             }
 
-            // self.env().transfer(caller, self.configs.max_round_contribution.unwrap() - reveal.0);
+            // return the partial contribution to the player
+            // this is done because all players contribute the max amount when making a commitment
+            // to avoid information leakage
+            self.env()
+                .transfer(caller, self.configs.max_round_contribution.unwrap() - reveal.0)
+                .map_err(|_| GameError::PartialContributionRefundFailed)?;
 
             // store the reveal
             self.current_round.as_mut().unwrap().player_reveals.push((
@@ -209,8 +217,28 @@ pub mod game_public_good {
             Ok(())
         }
 
-        #[ink(message, payable)]
+        #[ink(message)]
         fn complete_round(&mut self) -> Result<(), GameError> {
+            let current_round = self.current_round.as_mut().unwrap();
+
+            match (current_round) {
+                // check if all players have revealed
+                (round) if round.player_reveals.len() != self.players.len() => {
+                    return Err(GameError::NotAllPlayersRevealed)
+                },
+                (round) if round.status == RoundStatus::Ended => {
+                    return Err(GameError::NotAllPlayersRevealed)
+                },
+                _ => ()
+            }
+            
+            current_round.status = RoundStatus::Ended;
+            self.current_round = Some(current_round.clone());
+            
+            // TODO: emit event (round completed)
+            // TODO: start next round if applicable
+            // TODO: emit event (new round started)
+
             todo!("implement")
         }
 

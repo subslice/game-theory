@@ -35,6 +35,10 @@ pub enum GameError {
     InvalidGameStartState,
     /// Invalid value payed to play a round
     InvalidRoundContribution,
+    /// Partial contribution refund transfer failed
+    PartialContributionRefundFailed,
+    /// Not all the players revealed
+    NotAllPlayersRevealed,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
