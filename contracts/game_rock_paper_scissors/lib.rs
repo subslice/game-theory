@@ -195,7 +195,19 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn complete_round(&mut self) -> Result<(), GameError> {
-            todo!("implement")
+            let current_round = self.current_round.as_mut().unwrap();
+
+            if current_round.player_reveals.len() != self.players.len() {
+                return Err(GameError::NotAllPlayersRevealed)
+            };
+
+            if current_round.status != RoundStatus::Ended {
+                return Err(GameError::InvalidGameState)
+            };
+
+            current_round.status = RoundStatus::Ended;
+
+            // TODO emit events
         }
 
         #[ink(message, payable)]
