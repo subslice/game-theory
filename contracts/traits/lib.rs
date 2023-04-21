@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ink::primitives::{AccountId, Hash};
 use ink::prelude::vec::Vec;
+use ink::primitives::{AccountId, Hash};
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 

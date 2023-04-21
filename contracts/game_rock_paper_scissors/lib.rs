@@ -5,11 +5,8 @@ pub use self::game_rock_paper_scissors::{GameRockPaperScissors, GameRockPaperSci
 #[ink::contract]
 pub mod game_rock_paper_scissors {
     use ink::prelude::vec::Vec;
+    use ink_env::hash::{Blake2x256, HashOutput};
     use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus, RoundStatus};
-    use ink_env::hash::{
-        HashOutput,
-        Blake2x256,
-    };
 
     enum Choice {
         Rock,
@@ -111,11 +108,11 @@ pub mod game_rock_paper_scissors {
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
             if self.players.len() < self.configs.min_players.into() {
-                return Err(GameError::NotEnoughPlayers)
+                return Err(GameError::NotEnoughPlayers);
             }
 
             if self.status != GameStatus::Initialized {
-                return Err(GameError::InvalidGameStartState)
+                return Err(GameError::InvalidGameStartState);
             }
 
             self.current_round = Some(GameRound {
@@ -137,16 +134,16 @@ pub mod game_rock_paper_scissors {
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
             if self.status != GameStatus::Started {
-                return Err(GameError::GameNotStarted)
+                return Err(GameError::GameNotStarted);
             }
 
             if self.current_round.is_none() {
-                return Err(GameError::NoCurrentRound)
+                return Err(GameError::NoCurrentRound);
             }
 
             if let Some(min_round_contribution) = self.configs.min_round_contribution {
                 if min_round_contribution > self.env().transferred_value() {
-                    return Err(GameError::InvalidRoundContribution)
+                    return Err(GameError::InvalidRoundContribution);
                 }
             }
 
@@ -178,14 +175,17 @@ pub mod game_rock_paper_scissors {
             ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
             let current_round = self.current_round.as_mut().unwrap();
 
-            let player_commitment = current_round.player_commits.iter().find(|(c, _)| c == &caller);
+            let player_commitment = current_round
+                .player_commits
+                .iter()
+                .find(|(c, _)| c == &caller);
 
             if let Some(c) = player_commitment {
                 if c.1 != output.into() {
-                    return Err(GameError::InvalidReveal)
+                    return Err(GameError::InvalidReveal);
                 }
             } else {
-                return Err(GameError::CommitmentNotFound)
+                return Err(GameError::CommitmentNotFound);
             }
 
             current_round.player_reveals.push((caller, reveal));
@@ -198,11 +198,11 @@ pub mod game_rock_paper_scissors {
             let current_round = self.current_round.as_mut().unwrap();
 
             if current_round.player_reveals.len() != self.players.len() {
-                return Err(GameError::NotAllPlayersRevealed)
+                return Err(GameError::NotAllPlayersRevealed);
             };
 
             if current_round.status != RoundStatus::Ended {
-                return Err(GameError::InvalidGameState)
+                return Err(GameError::InvalidGameState);
             };
 
             current_round.status = RoundStatus::Ended;
