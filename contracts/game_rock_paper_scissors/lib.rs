@@ -6,6 +6,16 @@ pub use self::game_rock_paper_scissors::{GameRockPaperScissors, GameRockPaperSci
 pub mod game_rock_paper_scissors {
     use ink::prelude::vec::Vec;
     use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus, RoundStatus};
+    use ink_env::hash::{
+        HashOutput,
+        Blake2x256,
+    };
+
+    enum Choice {
+        Rock,
+        Paper,
+        Scissors,
+    }
 
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
@@ -83,7 +93,7 @@ pub mod game_rock_paper_scissors {
                 return Err(GameError::CallerMustMatchNewPlayer);
             }
 
-            if self.players.len() >= self.configs.max_players as usize {
+            if self.players.len() >= self.configs.max_players.into() {
                 return Err(GameError::MaxPlayersReached);
             }
 
@@ -94,6 +104,7 @@ pub mod game_rock_paper_scissors {
             }
 
             self.players.push(player);
+
             Ok(self.players.len() as u8)
         }
 
@@ -139,12 +150,47 @@ pub mod game_rock_paper_scissors {
                 }
             }
 
+            let caller = self.env().caller();
+            let value = self.env().transferred_value();
+            let current_round = self.current_round.as_mut().unwrap();
+
+            current_round.player_contributions.push((caller, value));
+            current_round.player_commits.push((caller, commitment));
+            current_round.total_contribution += value;
+
+            current_round.total_contribution += value;
+
+            // check if all players have committed
+            if current_round.player_commits.len() == self.players.len() {
+                // TODO: emit AllPlayersCommitted event
+            }
+
+            self.current_round = Some(current_round.clone());
+
             Ok(())
         }
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
-            todo!("implement")
+            let caller = self.env().caller();
+            let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
+            let mut output = <Blake2x256 as HashOutput>::Type::default(); // 128 bit buffer
+            ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
+            let current_round = self.current_round.as_mut().unwrap();
+
+            let player_commitment = current_round.player_commits.iter().find(|(c, _)| c == &caller);
+
+            if let Some(c) = player_commitment {
+                if c.1 != output.into() {
+                    return Err(GameError::InvalidReveal)
+                }
+            } else {
+                return Err(GameError::CommitmentNotFound)
+            }
+
+            current_round.player_reveals.push((caller, reveal));
+
+            Ok(())
         }
 
         #[ink(message, payable)]

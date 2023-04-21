@@ -60,6 +60,7 @@ pub enum RoundStatus {
 pub struct GameRound {
     pub id: u8,
     pub status: RoundStatus,
+    // TODO use Mappings of references instead of cloning
     pub player_commits: Vec<(AccountId, Hash)>,
     pub player_reveals: Vec<(AccountId, (u128, u128))>,
     pub player_contributions: Vec<(AccountId, u128)>,
