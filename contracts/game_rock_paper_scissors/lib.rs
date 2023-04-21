@@ -155,8 +155,6 @@ pub mod game_rock_paper_scissors {
             current_round.player_commits.push((caller, commitment));
             current_round.total_contribution += value;
 
-            current_round.total_contribution += value;
-
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
                 // TODO: emit AllPlayersCommitted event
