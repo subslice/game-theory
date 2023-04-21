@@ -142,7 +142,7 @@ pub mod game_rock_paper_scissors {
             }
 
             if let Some(min_round_contribution) = self.configs.min_round_contribution {
-                if min_round_contribution > self.env().transferred_value() {
+                if self.env().transferred_value() < min_round_contribution {
                     return Err(GameError::InvalidRoundContribution);
                 }
             }
