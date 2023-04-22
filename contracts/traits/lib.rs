@@ -5,9 +5,7 @@ use ink::prelude::vec::Vec;
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 
-// TODO: add some events
-
-/// Game errors.
+/// ---------------- ERRORS ----------------
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum GameError {
