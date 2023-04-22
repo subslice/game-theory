@@ -7,6 +7,57 @@ pub mod game_public_good {
     use ink::prelude::vec::Vec;
     use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus};
 
+    /// Events
+    #[ink(event)]
+    pub struct GameStarted {
+        #[ink(topic)]
+        game_address: Hash,
+    }
+
+    #[ink(event)]
+    pub struct RoundCommitPlayed {
+        #[ink(topic)]
+        game_address: Hash,
+        #[ink(topic)]
+        player: AccountId,
+        commit: Hash,
+    }
+
+    #[ink(event)]
+    pub struct RoundCommitRevealed {
+        #[ink(topic)]
+        game_address: Hash,
+        #[ink(topic)]
+        player: AccountId,
+        reveal: Option<(u128, u128)>,
+    }
+
+    #[ink(event)]
+    pub struct RoundForceClosed {
+        #[ink(topic)]
+        game_address: Hash,
+        #[ink(topic)]
+        round_id: u32,
+        // represents the admin which took the action to force close the round
+        // is simply the caller of the method in open games
+        admin_id: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct RoundCompleted {
+        #[ink(topic)]
+        game_address: Hash,
+        #[ink(topic)]
+        round_id: u32,
+        winners: Vec<(AccountId, Option<u128>)>,
+    }
+
+    #[ink(event)]
+    pub struct GameEnded {
+        #[ink(topic)]
+        game_address: Hash,
+    }
+
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
     #[ink(storage)]
