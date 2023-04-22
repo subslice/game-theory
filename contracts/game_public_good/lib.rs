@@ -4,7 +4,7 @@ pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
 
 #[ink::contract]
 pub mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus, GameLifecycleHelpers };
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus, GameUtils };
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
 
@@ -211,8 +211,11 @@ pub mod game_public_good {
             });
             self.status = GameStatus::Started;
             self.next_round_id += 1;
-
-            // TODO: emit event
+            
+            // emit event
+            self.env().emit_event(GameStarted {
+                game_address: self.env().account_id(),
+            });
 
             Ok(())
         }
@@ -359,7 +362,7 @@ pub mod game_public_good {
         }
     }
 
-    impl GameLifecycleHelpers for GamePublicGood {
+    impl GameUtils for GamePublicGood {
         fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
             if round.status != RoundStatus::Ended {
                 return Err(GameError::RoundNotEnded)

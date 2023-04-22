@@ -155,7 +155,7 @@ pub trait GameLifecycle {
     fn end_game(&mut self) -> Result<(), GameError>;
 }
 
-pub trait GameLifecycleHelpers {
+pub trait GameUtils {
     /// helper function to get winners of current round
     fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError>;
 }
