@@ -30,7 +30,7 @@ pub enum GameError {
     /// The current round has not been set, i.e. game hasn't started
     NoCurrentRound,
     /// Invalid state to start the game with
-    InvalidGameStartState,
+    InvalidGameState,
     /// Invalid value payed to play a round
     InvalidRoundContribution,
     /// Partial contribution refund transfer failed

@@ -163,7 +163,7 @@ pub mod game_public_good {
         fn start_game(&mut self) -> Result<(), GameError> {
             match (self.players.len(), self.status) {
                 (_, status) if status != GameStatus::Initialized => {
-                    return Err(GameError::InvalidGameStartState)
+                    return Err(GameError::InvalidGameState)
                 }
                 (players, _) if players < self.configs.min_players as usize => {
                     return Err(GameError::NotEnoughPlayers)
@@ -407,7 +407,7 @@ pub mod game_public_good {
             // can start the game when there are enough players
             assert!(game_public_good.start_game().is_ok());
             // cannot start again
-            assert_eq!(game_public_good.start_game().err(), Some(GameError::InvalidGameStartState));
+            assert_eq!(game_public_good.start_game().err(), Some(GameError::InvalidGameState));
         }
 
         /// A player cannot start a game that doesn't have enough players.
