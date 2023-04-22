@@ -4,30 +4,38 @@ pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
 
 #[ink::contract]
 pub mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus };
+    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus, GameLifecycleHelpers };
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
 
     /// Events
     #[ink(event)]
+    pub struct GameCreated {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        game_hash: Hash,
+    }
+    
+    #[ink(event)]
     pub struct GameStarted {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
     }
 
     #[ink(event)]
     pub struct RoundCommitPlayed {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
         #[ink(topic)]
         player: AccountId,
-        commit: Hash,
+        commitment: Hash,
     }
 
     #[ink(event)]
     pub struct RoundCommitRevealed {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
         #[ink(topic)]
         player: AccountId,
         reveal: Option<(u128, u128)>,
@@ -36,9 +44,9 @@ pub mod game_public_good {
     #[ink(event)]
     pub struct RoundForceClosed {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
         #[ink(topic)]
-        round_id: u32,
+        round_id: u8,
         // represents the admin which took the action to force close the round
         // is simply the caller of the method in open games
         admin_id: AccountId,
@@ -47,16 +55,16 @@ pub mod game_public_good {
     #[ink(event)]
     pub struct RoundCompleted {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
         #[ink(topic)]
-        round_id: u32,
+        round_id: u8,
         winners: Vec<(AccountId, Option<u128>)>,
     }
 
     #[ink(event)]
     pub struct GameEnded {
         #[ink(topic)]
-        game_address: Hash,
+        game_address: AccountId,
     }
 
     /// A single game storage.
@@ -115,6 +123,26 @@ pub mod game_public_good {
                 is_rounds_based: false,
             })
         }
+
+        pub fn emit_game_created(&self) -> Result<(), GameError> {
+            let game_address = self.env().account_id();
+            let game_hash = self.env().code_hash(&game_address).unwrap();
+
+            self.env().emit_event(GameCreated {
+                game_address,
+                game_hash,
+            });
+
+            Ok(())
+        }
+
+        pub fn emit_game_started(&self) -> Result<(), GameError> {
+            self.env().emit_event(GameStarted {
+                game_address: self.env().account_id()
+            });
+
+            Ok(())
+        }
     }
 
     /// An implementation of the `GameLifecycle` trait for the `GamePublicGood` contract.
@@ -156,6 +184,7 @@ pub mod game_public_good {
             }
 
             self.players.push(player);
+            self.emit_game_started().map_err(|_| GameError::FailedToEmitEvent)?;
             Ok(self.players.len() as u8)
         }
 
@@ -232,6 +261,11 @@ pub mod game_public_good {
             }
 
             self.current_round = Some(current_round.clone());
+            self.env().emit_event(RoundCommitPlayed {
+                game_address: self.env().account_id(),
+                player: self.env().caller(),
+                commitment,
+            });
             Ok(())
         }
 
@@ -271,8 +305,12 @@ pub mod game_public_good {
                 caller,
                 reveal,
             ));
-
-            // TODO: emit an event for the reveal
+            // emit event
+            self.env().emit_event(RoundCommitRevealed {
+                game_address: self.env().account_id(),
+                player: self.env().caller(),
+                reveal: Some(reveal),
+            });
 
             Ok(())
         }
@@ -293,9 +331,17 @@ pub mod game_public_good {
             }
             
             current_round.status = RoundStatus::Ended;
-            self.current_round = Some(current_round.clone());
+
+            // get winners
+            let winners = GamePublicGood::get_winners(current_round.clone())
+                .map_err(|_| GameError::FailedToGetWinners)?;
             
-            // TODO: emit event (round completed)
+            self.env().emit_event(RoundCompleted {
+                game_address: self.env().account_id(),
+                round_id: self.current_round.as_ref().unwrap().id,
+                winners,
+            });
+
             // TODO: start next round if applicable
             // TODO: emit event (new round started)
 
@@ -310,6 +356,19 @@ pub mod game_public_good {
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
             todo!("implement")
+        }
+    }
+
+    impl GameLifecycleHelpers for GamePublicGood {
+        fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
+            if round.status != RoundStatus::Ended {
+                return Err(GameError::RoundNotEnded)
+            }
+
+            // TODO: implement
+            unimplemented!();
+
+            Ok(vec![])
         }
     }
 

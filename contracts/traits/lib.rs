@@ -9,6 +9,8 @@ use scale::{Decode, Encode};
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum GameError {
+    FailedToEmitEvent,
+    FailedToGetWinners,
     /// Caller must match the palyer being added
     CallerMustMatchNewPlayer,
     /// No more space for players to join
@@ -29,6 +31,8 @@ pub enum GameError {
     GameNotStarted,
     /// The current round has not been set, i.e. game hasn't started
     NoCurrentRound,
+    /// The current round hasn't ended yet
+    RoundNotEnded,
     /// Invalid state to start the game with
     InvalidGameState,
     /// Invalid value payed to play a round
@@ -149,4 +153,9 @@ pub trait GameLifecycle {
     /// emits a relevant event
     #[ink(message, payable)]
     fn end_game(&mut self) -> Result<(), GameError>;
+}
+
+pub trait GameLifecycleHelpers {
+    /// helper function to get winners of current round
+    fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError>;
 }
