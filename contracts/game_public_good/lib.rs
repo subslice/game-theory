@@ -116,6 +116,7 @@ pub mod game_public_good {
                 min_players: 2,
                 min_round_contribution: Some(100),
                 max_round_contribution: Some(1_000),
+                round_reward_multiplier: Some(20),
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
