@@ -486,6 +486,45 @@ pub mod game_public_good {
             // cannot start, not enough players
             assert_eq!(game_public_good.start_game().err(), Some(GameError::NotEnoughPlayers));
         }
+
+        /// A player can play a round.
+        #[ink::test]
+        fn player_can_play_round() {
+            let accounts = 
+                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_public_good = GamePublicGood::default();
+            
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            assert!(game_public_good.join(accounts.alice).is_ok());
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+            assert!(game_public_good.join(accounts.bob).is_ok());
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.charlie);
+            assert!(game_public_good.join(accounts.charlie).is_ok());
+
+            let _ = game_public_good.start_game();
+            let mut commitment = <Blake2x256 as HashOutput>::Type::default();
+            let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
+            
+            // can play a round
+            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
+                game_public_good.configs.max_round_contribution.unwrap()
+            );
+            match game_public_good.play_round(commitment.into()) {
+                Err(error) => {
+                    println!("{:?}", error);
+                    assert!(false);
+                },
+                Ok(_) => assert!(true),
+            };
+
+            // round commit is stored
+            let commits = game_public_good.current_round.as_ref().unwrap().player_commits.clone();
+            assert_eq!(commits.len(), 1);
+            assert!(commits.first().unwrap().1 == commitment.into());
+
+        }
     }
 
     /// On-chain (E2E) tests.
