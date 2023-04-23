@@ -80,6 +80,8 @@ pub struct GameConfigs {
     pub min_players: u8,
     pub min_round_contribution: Option<u128>,
     pub max_round_contribution: Option<u128>,
+    /// The multiplier for the round reward. Always divisible by 10 to allow for decimal values.
+    pub round_reward_multiplier: Option<i8>,
     pub post_round_actions: bool,
     /// The number of blocks before a round is considered stale.
     pub round_timeout: Option<u32>,
@@ -157,5 +159,5 @@ pub trait GameLifecycle {
 
 pub trait GameUtils {
     /// helper function to get winners of current round
-    fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError>;
+    fn get_winners(round: &GameRound, configs: &GameConfigs, players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError>;
 }

@@ -336,7 +336,11 @@ pub mod game_public_good {
             current_round.status = RoundStatus::Ended;
 
             // get winners
-            let winners = GamePublicGood::get_winners(current_round.clone())
+            let winners = GamePublicGood::get_winners(
+                    &current_round,
+                    &self.configs,
+                    &self.players
+                )
                 .map_err(|_| GameError::FailedToGetWinners)?;
             
             self.env().emit_event(RoundCompleted {
@@ -363,15 +367,20 @@ pub mod game_public_good {
     }
 
     impl GameUtils for GamePublicGood {
-        fn get_winners(round: GameRound) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
+        fn get_winners(round: &GameRound, configs: &GameConfigs, players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
             if round.status != RoundStatus::Ended {
                 return Err(GameError::RoundNotEnded)
             }
 
-            // TODO: implement
-            unimplemented!();
+            // for each player that played, apply the multiplier to their contribution
+            let winners: Vec<(AccountId, Option<u128>)> = round.player_reveals
+                .iter()
+                .map(|&(account_id, play)| {
+                    (account_id, Some((play.0 * configs.round_reward_multiplier.unwrap().abs() as u128) / 10))
+                })
+                .collect();
 
-            Ok(vec![])
+            Ok(winners)
         }
     }
 
@@ -379,6 +388,37 @@ pub mod game_public_good {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        struct SetupTestGame {
+            join_game: bool,
+            start_game: bool,
+            play_commits: bool,
+        }
+
+        fn get_accounts() -> ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment> {
+            ink::env::test::default_accounts::<ink::env::DefaultEnvironment>()
+        }
+
+        fn setup_game(configs: SetupTestGame) -> GamePublicGood {
+            let accounts = get_accounts();
+
+            let mut game_public_good = GamePublicGood::default();
+            
+            if configs.join_game {
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+                assert!(game_public_good.join(accounts.alice).is_ok());
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+                assert!(game_public_good.join(accounts.bob).is_ok());
+                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.charlie);
+                assert!(game_public_good.join(accounts.charlie).is_ok());
+            }
+
+            if configs.start_game {
+                assert!(game_public_good.start_game().is_ok());
+            }
+
+            game_public_good
+        }
 
         /// Default constructor works.
         #[ink::test]
@@ -396,6 +436,7 @@ pub mod game_public_good {
                 min_players: 2,
                 min_round_contribution: Some(100),
                 max_round_contribution: Some(1_000),
+                round_reward_multiplier: Some(15),
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
@@ -490,19 +531,12 @@ pub mod game_public_good {
         /// A player can play a round.
         #[ink::test]
         fn player_can_play_round() {
-            let accounts = 
-                ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: false,
+            });
 
-            let mut game_public_good = GamePublicGood::default();
-            
-            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
-            assert!(game_public_good.join(accounts.alice).is_ok());
-            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
-            assert!(game_public_good.join(accounts.bob).is_ok());
-            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.charlie);
-            assert!(game_public_good.join(accounts.charlie).is_ok());
-
-            let _ = game_public_good.start_game();
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
@@ -523,7 +557,29 @@ pub mod game_public_good {
             let commits = game_public_good.current_round.as_ref().unwrap().player_commits.clone();
             assert_eq!(commits.len(), 1);
             assert!(commits.first().unwrap().1 == commitment.into());
+        }
 
+        /// A player cannot play a round twice.
+        #[ink::test]
+        fn player_cannot_play_twice() {
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: false
+            });
+
+            let mut commitment = <Blake2x256 as HashOutput>::Type::default();
+            let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
+            
+            // can play a round
+            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
+                game_public_good.configs.max_round_contribution.unwrap()
+            );
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+
+            // cannot play again for the same round
+            assert!(game_public_good.play_round(commitment.into()).is_err());
         }
     }
 
