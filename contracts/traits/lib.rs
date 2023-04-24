@@ -31,23 +31,23 @@ pub enum GameError {
     GameNotStarted,
     /// The current round has not been set, i.e. game hasn't started
     NoCurrentRound,
-    /// Invalid state to start the game with
-    InvalidGameStartState,
+    /// Invalid game state
+    InvalidGameState,
+    /// Invalid round state
+    InvalidRoundState,
     /// Invalid value payed to play a round
     InvalidRoundContribution,
     /// Partial contribution refund transfer failed
     PartialContributionRefundFailed,
     /// Not all the players revealed
     NotAllPlayersRevealed,
-    InvalidGameState,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum GameStatus {
-    Initialized,
     Ready,
-    Started,
+    OnGoing,
     Ended,
 }
 
@@ -55,8 +55,7 @@ pub enum GameStatus {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum RoundStatus {
     Ready,
-    Started,
-    PendingRewardsClaim,
+    OnGoing,
     Ended,
 }
 

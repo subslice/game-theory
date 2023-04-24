@@ -9,9 +9,46 @@ pub mod game_rock_paper_scissors {
     use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus, RoundStatus};
 
     enum Choice {
-        Rock,
-        Paper,
-        Scissors,
+        Rock, // 0
+        Paper, // 1
+        Scissors, // 2
+    }
+
+    #[ink(event)]
+    pub struct GameCreated {
+        #[ink(topic)]
+        creator: AccountId,
+        #[ink(topic)]
+        configs: GameConfigs
+    }
+
+    #[ink(event)]
+    pub struct GameStarted {
+        #[ink(topic)]
+        players: Vec<AccountId>,
+        #[ink(topic)]
+        creator: AccountId,
+        #[ink(topic)]
+        configs: GameConfigs
+    }
+
+    #[ink(event)]
+    pub struct GameEnded {
+        #[ink(topic)]
+        players: Vec<AccountId>,
+        #[ink(topic)]
+        creator: AccountId,
+        #[ink(topic)]
+        configs: GameConfigs,
+        winners: Vec<(AccountId, u128)>,
+        rounds_played: u8,
+    }
+
+    #[ink(event)]
+    pub struct RoundEnded {
+        #[ink(topic)]
+        winners: Vec<(AccountId, u128)>,
+        round_id: u8,
     }
 
     /// A single game storage.
@@ -28,6 +65,8 @@ pub mod game_rock_paper_scissors {
         current_round: Option<GameRound>,
         /// The id of the next round
         next_round_id: u8,
+        /// Account that created the instance of this game
+        creator: AccountId,
         /// The configurations of the game
         configs: GameConfigs,
     }
@@ -37,8 +76,9 @@ pub mod game_rock_paper_scissors {
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
             Self {
+                creator: Self::env().caller(),
                 players: Vec::new(),
-                status: GameStatus::Initialized,
+                status: GameStatus::Ready,
                 rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
@@ -52,8 +92,8 @@ pub mod game_rock_paper_scissors {
             Self::new(GameConfigs {
                 max_players: 2,
                 min_players: 2,
-                min_round_contribution: None,
-                max_round_contribution: None,
+                min_round_contribution: Some(1),
+                max_round_contribution: Some(10000),
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
@@ -111,8 +151,8 @@ pub mod game_rock_paper_scissors {
                 return Err(GameError::NotEnoughPlayers);
             }
 
-            if self.status != GameStatus::Initialized {
-                return Err(GameError::InvalidGameStartState);
+            if self.status != GameStatus::Ready {
+                return Err(GameError::InvalidGameState);
             }
 
             self.current_round = Some(GameRound {
@@ -125,7 +165,7 @@ pub mod game_rock_paper_scissors {
                 total_reward: 0,
             });
 
-            self.status = GameStatus::Started;
+            self.status = GameStatus::OnGoing;
             self.next_round_id += 1;
 
             Ok(())
@@ -133,7 +173,7 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
-            if self.status != GameStatus::Started {
+            if self.status != GameStatus::OnGoing {
                 return Err(GameError::GameNotStarted);
             }
 
@@ -159,8 +199,6 @@ pub mod game_rock_paper_scissors {
             if current_round.player_commits.len() == self.players.len() {
                 // TODO: emit AllPlayersCommitted event
             }
-
-            self.current_round = Some(current_round.clone());
 
             Ok(())
         }
@@ -199,11 +237,33 @@ pub mod game_rock_paper_scissors {
                 return Err(GameError::NotAllPlayersRevealed);
             };
 
-            if current_round.status != RoundStatus::Ended {
-                return Err(GameError::InvalidGameState);
+            if current_round.status != RoundStatus::OnGoing {
+                return Err(GameError::InvalidRoundState);
+            };
+
+            let player1 = current_round.player_reveals[0];
+            let player2 = current_round.player_reveals[1];
+
+            let score = (player1.1.0 - player2.1.0) % 3;
+
+            let rewards = current_round.total_contribution;
+
+            match score {
+                1 => {
+                    Self::env().transfer(player1.0, rewards);
+                },
+                2 => {
+                    Self::env().transfer(player2.0, rewards);
+                    // self. ?
+                }
+                0 | _ => {
+                    ()
+                },
             };
 
             current_round.status = RoundStatus::Ended;
+
+            Ok(())
 
             // TODO emit events
         }
@@ -215,7 +275,19 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
-            todo!("implement")
+            let current_round = self.current_round.as_mut().unwrap();
+
+            if self.status != GameStatus::OnGoing {
+                return Err(GameError::InvalidGameState)
+            }
+
+            if current_round.status != RoundStatus::Ended {
+                return Err(GameError::InvalidRoundState)
+            }
+
+            self.status = GameStatus::Ended;
+
+            self.env().terminate_contract(self.creator);
         }
     }
 
