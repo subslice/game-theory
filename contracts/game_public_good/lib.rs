@@ -76,8 +76,6 @@ pub mod game_public_good {
         players: Vec<AccountId>,
         /// The status of the current game
         status: GameStatus,
-        /// A list of all the rounds that have been played
-        rounds: Vec<GameRound>,
         /// The current round of the game
         current_round: Option<GameRound>,
         /// The id of the next round
@@ -103,7 +101,6 @@ pub mod game_public_good {
                 created_by: Self::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Initialized,
-                rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
                 configs,
@@ -121,7 +118,7 @@ pub mod game_public_good {
                 round_reward_multiplier: Some(20),
                 post_round_actions: false,
                 round_timeout: None,
-                max_rounds: None,
+                max_rounds: Some(3),
                 join_fee: None,
                 is_rounds_based: false,
             })
@@ -325,13 +322,13 @@ pub mod game_public_good {
         fn complete_round(&mut self) -> Result<(), GameError> {
             let current_round = self.current_round.as_mut().unwrap();
 
-            match (current_round) {
+            match current_round {
                 // check if all players have revealed
-                (round) if round.player_reveals.len() != self.players.len() => {
+                round if round.player_reveals.len() != self.players.len() => {
                     return Err(GameError::NotAllPlayersRevealed)
                 },
-                (round) if round.status == RoundStatus::Ended => {
-                    return Err(GameError::NotAllPlayersRevealed)
+                round if round.status == RoundStatus::Ended => {
+                    return Err(GameError::InvalidGameState)
                 },
                 _ => ()
             }
@@ -352,10 +349,29 @@ pub mod game_public_good {
                 winners,
             });
 
-            // TODO: start next round if applicable
+            // TODO: handle checking players who haven't played
+            
+            if self.configs.max_rounds.unwrap_or(999) < self.next_round_id.into() {
+                self.status = GameStatus::Ended;
+                self.env().emit_event(GameEnded {
+                    game_address: self.env().account_id(),
+                });
+            } else {
+                self.current_round = Some(GameRound {
+                    id: self.next_round_id,
+                    status: RoundStatus::Ready,
+                    player_commits: Vec::new(),
+                    player_reveals: Vec::new(),
+                    player_contributions: Vec::new(),
+                    total_contribution: 0,
+                    total_reward: 0,
+                });
+                self.next_round_id += 1;
+            }
+
             // TODO: emit event (new round started)
 
-            todo!("implement")
+            Ok(())
         }
 
         #[ink(message, payable)]
@@ -365,13 +381,17 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
+            if self.status != GameStatus::Ended {
+                return Err(GameError::InvalidGameState)
+            }
+
             // terminate the contract and send remaining balance to the contract's creator
             self.env().terminate_contract(self.created_by);
         }
     }
 
     impl GameUtils for GamePublicGood {
-        fn get_winners(round: &GameRound, configs: &GameConfigs, players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
+        fn get_winners(round: &GameRound, configs: &GameConfigs, _players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
             if round.status != RoundStatus::Ended {
                 return Err(GameError::RoundNotEnded)
             }
@@ -401,6 +421,10 @@ pub mod game_public_good {
 
         fn get_accounts() -> ink::env::test::DefaultAccounts<ink::env::DefaultEnvironment> {
             ink::env::test::default_accounts::<ink::env::DefaultEnvironment>()
+        }
+
+        fn get_balance(account: AccountId) -> Balance {
+            ink::env::test::get_account_balance::<ink::env::DefaultEnvironment>(account).unwrap()
         }
 
         fn setup_game(configs: SetupTestGame) -> GamePublicGood {
@@ -669,7 +693,6 @@ pub mod game_public_good {
                 play_commits: true
             });
 
-            // do the reveal step for each player
             set_caller(accounts.alice);
             
             // the reveal used below is different from that which is committed to in the "setup_game" function
@@ -680,6 +703,92 @@ pub mod game_public_good {
                     assert!(false);
                 },
             };
+        }
+
+        /// Players can complete a round.
+        #[ink::test]
+        fn players_can_complete_round() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: true
+            });
+
+            // do the reveal step for each player
+            set_caller(accounts.alice);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            set_caller(accounts.bob);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            set_caller(accounts.charlie);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+
+            // attempt to complete the round
+            match game_public_good.complete_round() {
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                    assert!(false);
+                },
+                Ok(_) => assert!(true),
+            };
+        }
+
+        /// Round cannot be completed if not all players revealed.
+        #[ink::test]
+        fn all_players_must_reveal_to_complete_round() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: false
+            });
+
+            let mut commitment = <Blake2x256 as HashOutput>::Type::default();
+            let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
+
+            let mut commitment2 = <Blake2x256 as HashOutput>::Type::default();
+            let data2 = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+            ink::env::hash_bytes::<Blake2x256>(&data2, &mut commitment2);
+
+            set_value(game_public_good.configs.max_round_contribution.unwrap());
+
+            set_caller(accounts.alice);
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+            set_caller(accounts.bob);
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+            set_caller(accounts.charlie);
+            assert!(game_public_good.play_round(commitment2.into()).is_ok());
+
+            // do the reveal step for each player
+            set_caller(accounts.alice);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            set_caller(accounts.charlie);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+
+            // attempt to complete the round
+            assert_eq!(game_public_good.complete_round().err(), Some(GameError::NotAllPlayersRevealed));
+        }
+
+        #[ink::test]
+        fn refunds_are_processed_upon_reveal() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: true
+            });
+
+            let contribution_amount = 100;
+            let alice_balance = get_balance(accounts.alice);
+            let expected_refund = game_public_good.configs.max_round_contribution.unwrap() - contribution_amount;
+
+            // do the reveal step for each player
+            set_caller(accounts.alice);
+            assert!(game_public_good.reveal_round((contribution_amount, 144)).is_ok());
+
+            // attempt to complete the round
+            assert_eq!(get_balance(accounts.alice), alice_balance + expected_refund);
         }
     }
 
