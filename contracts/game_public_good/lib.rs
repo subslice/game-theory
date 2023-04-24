@@ -71,6 +71,7 @@ pub mod game_public_good {
     /// Each contract (along with its storage) represents a single game instance.
     #[ink(storage)]
     pub struct GamePublicGood {
+        created_by: AccountId,
         /// Stores the list of players for this game instance
         players: Vec<AccountId>,
         /// The status of the current game
@@ -99,6 +100,7 @@ pub mod game_public_good {
             }
             
             Self {
+                created_by: Self::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Initialized,
                 rounds: Vec::new(),
@@ -363,7 +365,8 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
-            todo!("implement")
+            // terminate the contract and send remaining balance to the contract's creator
+            self.env().terminate_contract(self.created_by);
         }
     }
 
@@ -406,11 +409,11 @@ pub mod game_public_good {
             let mut game_public_good = GamePublicGood::default();
             
             if configs.join_game {
-                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+                set_caller(accounts.alice);
                 assert!(game_public_good.join(accounts.alice).is_ok());
-                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+                set_caller(accounts.bob);
                 assert!(game_public_good.join(accounts.bob).is_ok());
-                ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.charlie);
+                set_caller(accounts.charlie);
                 assert!(game_public_good.join(accounts.charlie).is_ok());
             }
 
@@ -418,7 +421,30 @@ pub mod game_public_good {
                 assert!(game_public_good.start_game().is_ok());
             }
 
+            if configs.play_commits {
+                let mut commitment = <Blake2x256 as HashOutput>::Type::default();
+                let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+                ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
+
+                set_value(game_public_good.configs.max_round_contribution.unwrap());
+
+                set_caller(accounts.alice);
+                assert!(game_public_good.play_round(commitment.into()).is_ok());
+                set_caller(accounts.bob);
+                assert!(game_public_good.play_round(commitment.into()).is_ok());
+                set_caller(accounts.charlie);
+                assert!(game_public_good.play_round(commitment.into()).is_ok());
+            }
+
             game_public_good
+        }
+
+        fn set_caller(account: AccountId) -> () {
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(account);
+        }
+
+        fn set_value(value: Balance) -> () {
+            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(value);
         }
 
         /// Default constructor works.
@@ -581,6 +607,79 @@ pub mod game_public_good {
 
             // cannot play again for the same round
             assert!(game_public_good.play_round(commitment.into()).is_err());
+        }
+
+        /// All players can play round.
+        #[ink::test]
+        fn all_players_can_play_round() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: false
+            });
+
+            let mut commitment = <Blake2x256 as HashOutput>::Type::default();
+            let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
+            
+            // can play a round
+            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
+                game_public_good.configs.max_round_contribution.unwrap()
+            );
+
+            set_caller(accounts.alice);
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+
+            set_caller(accounts.charlie);
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+
+            set_caller(accounts.bob);
+            assert!(game_public_good.play_round(commitment.into()).is_ok());
+        }
+
+        /// Each player can play the round then reveal.
+        #[ink::test]
+        fn players_can_play_and_reveal() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: true
+            });
+
+            // do the reveal step for each player
+            set_caller(accounts.alice);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            set_caller(accounts.bob);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            set_caller(accounts.charlie);
+            assert!(game_public_good.reveal_round((100, 144)).is_ok());
+            // check that all reveals are stored in state
+            assert_eq!(game_public_good.current_round.as_ref().unwrap().player_reveals.len(), 3);
+        }
+
+        /// A reveal must match the commitment.
+        #[ink::test]
+        fn reveal_must_match_commitment() {
+            let accounts = get_accounts();
+            let mut game_public_good = setup_game(SetupTestGame {
+                join_game: true,
+                start_game: true,
+                play_commits: true
+            });
+
+            // do the reveal step for each player
+            set_caller(accounts.alice);
+            
+            // the reveal used below is different from that which is committed to in the "setup_game" function
+            match game_public_good.reveal_round((200, 144)) {
+                Err(_) => assert!(true),
+                Ok(_) => {
+                    println!("reveal must be considered invalid");
+                    assert!(false);
+                },
+            };
         }
     }
 
