@@ -41,6 +41,8 @@ pub enum GameError {
     PartialContributionRefundFailed,
     /// Not all the players revealed
     NotAllPlayersRevealed,
+    /// Failed to issue winner rewards
+    FailedToIssueWinnerRewards,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]

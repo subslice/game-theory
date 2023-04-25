@@ -144,6 +144,14 @@ pub mod game_public_good {
 
             Ok(())
         }
+
+        #[ink(message)]
+        pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
+            let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
+            let mut output = <Blake2x256 as HashOutput>::Type::default();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
+            Ok(output.into())
+        }
     }
 
     /// An implementation of the `GameLifecycle` trait for the `GamePublicGood` contract.
@@ -343,6 +351,17 @@ pub mod game_public_good {
                     &self.players
                 )
                 .map_err(|err| err)?;
+
+            // issue winner rewards
+            winners.iter().for_each(|(player, reward)| {
+                match reward {
+                    Some(reward) => {
+                        let _ = self.env().transfer(*player, *reward)
+                            .map_err(|_| GameError::FailedToIssueWinnerRewards);
+                    },
+                    None => ()
+                }
+            });
             
             self.env().emit_event(RoundCompleted {
                 game_address: self.env().account_id(),
