@@ -187,7 +187,7 @@ pub mod game_public_good {
             }
 
             if let Some(fees) = self.configs.join_fee {
-                if self.env().transferred_value() < fees {
+                if self.env().transferred_value() < Balance::from(fees) {
                     return Err(GameError::InsufficientJoiningFees);
                 }
             }
@@ -218,6 +218,7 @@ pub mod game_public_good {
                 total_contribution: 0,
                 total_reward: 0,
             });
+            self.next_round_id += 1;
             self.status = GameStatus::Started;
             
             // emit event
@@ -237,7 +238,7 @@ pub mod game_public_good {
                 (_, true, _) => {
                     return Err(GameError::NoCurrentRound)
                 },
-                (_, _, value) if Some(value) < self.configs.max_round_contribution => {
+                (_, _, value) if value < Balance::from(self.configs.max_round_contribution.unwrap_or(0)) => {
                     // NOTE: the issue here is since this game is publicgood, some amount has to be
                     // contributed to the pot. So, we need to check if the player has contributed
                     // that amount. But we also don't want to reveal the contribution :)
@@ -747,7 +748,7 @@ pub mod game_public_good {
                 },
                 Ok(_) => {
                     // check that the round ID has been incremented
-                    assert_eq!(game_public_good.next_round_id, 2);
+                    assert_eq!(game_public_good.next_round_id, 3);
                     // check that the relevant round completion event is emitted
                     let events = ink::env::test::recorded_events().collect::<Vec<_>>();
                     
