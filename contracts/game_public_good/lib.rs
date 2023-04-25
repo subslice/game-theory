@@ -271,7 +271,6 @@ pub mod game_public_good {
                 // TODO: emit AllPlayersCommitted event
             }
 
-            self.current_round = Some(current_round.clone());
             self.env().emit_event(RoundCommitPlayed {
                 game_address: self.env().account_id(),
                 player: self.env().caller(),
