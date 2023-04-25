@@ -24,6 +24,7 @@ pub mod game_public_good {
     }
 
     #[ink(event)]
+    #[derive(Debug)]
     pub struct RoundCommitPlayed {
         #[ink(topic)]
         game_address: AccountId,
@@ -210,7 +211,6 @@ pub mod game_public_good {
                 total_reward: 0,
             });
             self.status = GameStatus::Started;
-            self.next_round_id += 1;
             
             // emit event
             self.env().emit_event(GameStarted {
@@ -327,6 +327,7 @@ pub mod game_public_good {
                 round if round.player_reveals.len() != self.players.len() => {
                     return Err(GameError::NotAllPlayersRevealed)
                 },
+                // check if the round has already ended
                 round if round.status == RoundStatus::Ended => {
                     return Err(GameError::InvalidGameState)
                 },
@@ -341,7 +342,7 @@ pub mod game_public_good {
                     &self.configs,
                     &self.players
                 )
-                .map_err(|_| GameError::FailedToGetWinners)?;
+                .map_err(|err| err)?;
             
             self.env().emit_event(RoundCompleted {
                 game_address: self.env().account_id(),
@@ -351,6 +352,7 @@ pub mod game_public_good {
 
             // TODO: handle checking players who haven't played
             
+            // check if there's a next round or game ended
             if self.configs.max_rounds.unwrap_or(999) < self.next_round_id.into() {
                 self.status = GameStatus::Ended;
                 self.env().emit_event(GameEnded {
@@ -593,9 +595,7 @@ pub mod game_public_good {
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
             
             // can play a round
-            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
-                game_public_good.configs.max_round_contribution.unwrap()
-            );
+            set_value(game_public_good.configs.max_round_contribution.unwrap());
             match game_public_good.play_round(commitment.into()) {
                 Err(error) => {
                     println!("{:?}", error);
@@ -607,7 +607,7 @@ pub mod game_public_good {
             // round commit is stored
             let commits = game_public_good.current_round.as_ref().unwrap().player_commits.clone();
             assert_eq!(commits.len(), 1);
-            assert!(commits.first().unwrap().1 == commitment.into());
+            assert_eq!(commits.first().unwrap().1, commitment.into());
         }
 
         /// A player cannot play a round twice.
@@ -624,9 +624,7 @@ pub mod game_public_good {
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
             
             // can play a round
-            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
-                game_public_good.configs.max_round_contribution.unwrap()
-            );
+            set_value(game_public_good.configs.max_round_contribution.unwrap());
             assert!(game_public_good.play_round(commitment.into()).is_ok());
 
             // cannot play again for the same round
@@ -648,9 +646,7 @@ pub mod game_public_good {
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
             
             // can play a round
-            ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
-                game_public_good.configs.max_round_contribution.unwrap()
-            );
+            set_value(game_public_good.configs.max_round_contribution.unwrap());
 
             set_caller(accounts.alice);
             assert!(game_public_good.play_round(commitment.into()).is_ok());
@@ -705,6 +701,8 @@ pub mod game_public_good {
             };
         }
 
+        type Event = <GamePublicGood as ::ink::reflect::ContractEventBase>::Type;
+
         /// Players can complete a round.
         #[ink::test]
         fn players_can_complete_round() {
@@ -729,7 +727,47 @@ pub mod game_public_good {
                     println!("Error: {:?}", err);
                     assert!(false);
                 },
-                Ok(_) => assert!(true),
+                Ok(_) => {
+                    // check that the round ID has been incremented
+                    assert_eq!(game_public_good.next_round_id, 2);
+                    // check that the relevant round completion event is emitted
+                    let events = ink::env::test::recorded_events().collect::<Vec<_>>();
+                    
+                    // ensure the relevant event is emitted
+                    // TODO: refactor this mess
+                    let mut found: bool = false;
+                    println!("Found {:?} events", events.len());
+                    for e in events {
+                        // decode the event
+                        let decoded_event = <Event as scale::Decode>::decode(&mut &e.data[..])
+                            .expect("encountered invalid contract event data buffer");
+                        
+                        // match the event type for the data
+                        match decoded_event {
+                            Event::RoundCompleted(data) => {
+                                println!("Round Completed");
+                                found = true;
+                            },
+                            // Event::RoundCommitPlayed(data) => {
+                            //     match data {
+                            //         RoundCommitPlayed {
+                            //             game_address,
+                            //             player,
+                            //             commitment,
+                            //         } => {
+                            //             println!("RoundCommitPlayed: {:?}", data);
+                            //         },
+                            //     }
+                            // },
+                            _ => {
+                                println!("Unknown event");
+                            }
+                        }
+                    }
+
+                    // check that the round completion event is emitted
+                    assert!(found);
+                },
             };
         }
 
@@ -796,7 +834,6 @@ pub mod game_public_good {
     #[cfg(all(test, feature = "e2e-tests"))]
     mod e2e_tests {
         use super::*;
-        use ink_e2e::build_message;
         type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
         // Default constructor works.
@@ -812,7 +849,7 @@ pub mod game_public_good {
                 .account_id;
 
             // Then
-            let get_players = build_message::<GamePublicGoodRef>(contract_account_id.clone())
+            let get_players = ink_e2e::build_message::<GamePublicGoodRef>(contract_account_id.clone())
                 .call(|test| test.get_players());
             let get_result = client
                 .call_dry_run(&ink_e2e::alice(), &get_players, 0, None)
