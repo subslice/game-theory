@@ -34,6 +34,14 @@ pub mod game_public_good {
     }
 
     #[ink(event)]
+    pub struct AllPlayersCommitted {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        round_id: u8,
+    }
+
+    #[ink(event)]
     pub struct RoundCommitRevealed {
         #[ink(topic)]
         game_address: AccountId,
@@ -269,7 +277,10 @@ pub mod game_public_good {
 
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
-                // TODO: emit AllPlayersCommitted event
+                Self::env().emit_event(AllPlayersCommitted {
+                    game_address: Self::env().account_id(),
+                    round_id: current_round.id.clone(),
+                });
             }
 
             self.env().emit_event(RoundCommitPlayed {
