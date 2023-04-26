@@ -22,6 +22,7 @@ crate-type = [
     # Used for contract Wasm blobs that are to be linked against.
     "rlib",
 ]
+overflow-checks = false
 
 [features]
 default = ["std"]
