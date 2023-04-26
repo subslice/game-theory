@@ -40,6 +40,14 @@ pub mod game_rock_paper_scissors {
     }
 
     #[ink(event)]
+    pub struct PlayerJoined {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+    }
+
+    #[ink(event)]
     pub struct Committed {
         #[ink(topic)]
         game_address: AccountId,
@@ -151,7 +159,7 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
-            if Self::env().caller() != player {
+            if self.env().caller() != player {
                 return Err(GameError::CallerMustMatchNewPlayer);
             }
 
@@ -166,6 +174,11 @@ pub mod game_rock_paper_scissors {
             }
 
             self.players.push(player);
+
+            self.env().emit_event(PlayerJoined {
+                game_address: self.env().account_id(),
+                player: self.env().caller(),
+            });
 
             Ok(self.players.len() as u8)
         }
@@ -479,6 +492,11 @@ pub mod game_rock_paper_scissors {
                 assert_eq!(get_result.return_value(), vec![]);
 
                 Ok(())
+            }
+
+            #[ink_e2e::test]
+            async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2Result<()> {
+
             }
         }
     }
