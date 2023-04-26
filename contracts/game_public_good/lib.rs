@@ -24,6 +24,14 @@ pub mod game_public_good {
     }
 
     #[ink(event)]
+    pub struct PlayerJoined {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+    }
+
+    #[ink(event)]
     #[derive(Debug)]
     pub struct RoundCommitPlayed {
         #[ink(topic)]
@@ -201,7 +209,10 @@ pub mod game_public_good {
             }
 
             self.players.push(player);
-            self.emit_game_started().map_err(|_| GameError::FailedToEmitEvent)?;
+            self.env().emit_event(PlayerJoined {
+                game_address: self.env().account_id(),
+                player,
+            });
             Ok(self.players.len() as u8)
         }
 
