@@ -5,12 +5,12 @@ use ink::primitives::{AccountId, Hash};
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 
-// TODO: add some events
-
-/// Game errors.
+/// ---------------- ERRORS ----------------
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum GameError {
+    FailedToEmitEvent,
+    FailedToGetWinners,
     /// Caller must match the palyer being added
     CallerMustMatchNewPlayer,
     /// No more space for players to join
@@ -31,16 +31,20 @@ pub enum GameError {
     GameNotStarted,
     /// The current round has not been set, i.e. game hasn't started
     NoCurrentRound,
-    /// Invalid game state
-    InvalidGameState,
     /// Invalid round state
     InvalidRoundState,
+    /// The current round hasn't ended yet
+    RoundNotEnded,
+    /// Invalid state to start the game with
+    InvalidGameState,
     /// Invalid value payed to play a round
     InvalidRoundContribution,
     /// Partial contribution refund transfer failed
     PartialContributionRefundFailed,
     /// Not all the players revealed
     NotAllPlayersRevealed,
+    /// Failed to issue winner rewards
+    FailedToIssueWinnerRewards,
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
@@ -79,6 +83,8 @@ pub struct GameConfigs {
     pub min_players: u8,
     pub min_round_contribution: Option<u128>,
     pub max_round_contribution: Option<u128>,
+    /// The multiplier for the round reward. Always divisible by 10 to allow for decimal values.
+    pub round_reward_multiplier: Option<i8>,
     pub post_round_actions: bool,
     /// The number of blocks before a round is considered stale.
     pub round_timeout: Option<u32>,
@@ -152,4 +158,9 @@ pub trait GameLifecycle {
     /// emits a relevant event
     #[ink(message, payable)]
     fn end_game(&mut self) -> Result<(), GameError>;
+}
+
+pub trait GameUtils {
+    /// helper function to get winners of current round
+    fn get_winners(round: &GameRound, configs: &GameConfigs, players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError>;
 }
