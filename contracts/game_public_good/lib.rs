@@ -31,7 +31,7 @@ pub mod game_public_good {
         pub fn new(configs: GameConfigs) -> Self {
             Self {
                 players: Vec::new(),
-                status: GameStatus::Initialized,
+                status: GameStatus::Ready,
                 rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
@@ -190,29 +190,5 @@ pub mod game_public_good {
     mod e2e_tests {
         use super::*;
         use ink_e2e::build_message;
-        type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-
-        // Default constructor works.
-        #[ink_e2e::test]
-        async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            let constructor = GamePublicGoodRef::default();
-
-            // When
-            let contract_account_id = client
-                .instantiate("game_public_good", &ink_e2e::alice(), constructor, 0, None)
-                .await
-                .expect("instantiation failed")
-                .account_id;
-
-            // Then
-            let get_players = build_message::<GamePublicGoodRef>(contract_account_id.clone())
-                .call(|test| test.get_players());
-            let get_result = client
-                .call_dry_run(&ink_e2e::alice(), &get_players, 0, None)
-                .await;
-            assert_eq!(get_result.return_value(), vec![]);
-
-            Ok(())
-        }
     }
 }
