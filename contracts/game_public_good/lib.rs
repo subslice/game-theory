@@ -117,7 +117,8 @@ pub mod game_public_good {
             Self {
                 created_by: Self::env().caller(),
                 players: Vec::new(),
-                status: GameStatus::Initialized,
+                status: GameStatus::Ready,
+                rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
                 configs,
@@ -875,6 +876,7 @@ pub mod game_public_good {
     #[cfg(all(test, feature = "e2e-tests"))]
     mod e2e_tests {
         use super::*;
+        use ink_e2e::build_message;
         type E2EResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
         // Default constructor works.

@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-use ink::primitives::{AccountId, Hash};
 use ink::prelude::vec::Vec;
+use ink::primitives::{AccountId, Hash};
 use ink::storage::traits::StorageLayout;
 use scale::{Decode, Encode};
 
@@ -31,6 +31,8 @@ pub enum GameError {
     GameNotStarted,
     /// The current round has not been set, i.e. game hasn't started
     NoCurrentRound,
+    /// Invalid round state
+    InvalidRoundState,
     /// The current round hasn't ended yet
     RoundNotEnded,
     /// Invalid state to start the game with
@@ -43,14 +45,19 @@ pub enum GameError {
     NotAllPlayersRevealed,
     /// Failed to issue winner rewards
     FailedToIssueWinnerRewards,
+    /// Player is already in the game
+    PlayerAlreadyJoined,
+    /// Player already played n this round
+    PlayerAlreadyCommitted,
+    /// Player choice for the round is not valid
+    InvalidChoice
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum GameStatus {
-    Initialized,
     Ready,
-    Started,
+    OnGoing,
     Ended,
 }
 
@@ -58,8 +65,7 @@ pub enum GameStatus {
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum RoundStatus {
     Ready,
-    Started,
-    PendingRewardsClaim,
+    OnGoing,
     Ended,
 }
 
@@ -68,6 +74,7 @@ pub enum RoundStatus {
 pub struct GameRound {
     pub id: u8,
     pub status: RoundStatus,
+    // TODO use Mappings of references instead of cloning
     pub player_commits: Vec<(AccountId, Hash)>,
     pub player_reveals: Vec<(AccountId, (u128, u128))>,
     pub player_contributions: Vec<(AccountId, u128)>,
