@@ -45,6 +45,8 @@ pub enum GameError {
     NotAllPlayersRevealed,
     /// Failed to issue winner rewards
     FailedToIssueWinnerRewards,
+    /// Player is already in the game
+    PlayerAlreadyJoined
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]

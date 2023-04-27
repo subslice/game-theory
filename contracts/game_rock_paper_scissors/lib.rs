@@ -9,8 +9,8 @@ pub mod game_rock_paper_scissors {
     use traits::{GameConfigs, GameError, GameLifecycle, GameRound, GameStatus, RoundStatus};
 
     enum Choice {
-        Rock, // 0
-        Paper, // 1
+        Rock,     // 0
+        Paper,    // 1
         Scissors, // 2
     }
 
@@ -21,7 +21,7 @@ pub mod game_rock_paper_scissors {
         #[ink(topic)]
         creator: AccountId,
         #[ink(topic)]
-        configs: GameConfigs
+        configs: GameConfigs,
     }
 
     #[ink(event)]
@@ -48,7 +48,7 @@ pub mod game_rock_paper_scissors {
     }
 
     #[ink(event)]
-    pub struct Committed {
+    pub struct PlayerCommitted {
         #[ink(topic)]
         game_address: AccountId,
         #[ink(topic)]
@@ -57,7 +57,15 @@ pub mod game_rock_paper_scissors {
     }
 
     #[ink(event)]
-    pub struct Revealed {
+    pub struct AllPlayersCommitted {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        commits: Vec<(AccountId, Hash)>
+    }
+
+    #[ink(event)]
+    pub struct PlayerRevealed {
         #[ink(topic)]
         game_address: AccountId,
         #[ink(topic)]
@@ -134,6 +142,17 @@ pub mod game_rock_paper_scissors {
                 is_rounds_based: false,
             })
         }
+
+        // testing purposes only
+        // this operation should be done by the UI/frontend
+        #[ink(message)]
+        pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
+            let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
+            let mut output = <Blake2x256 as HashOutput>::Type::default();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
+            Ok(output.into())
+        }
+
     }
 
     impl GameLifecycle for GameRockPaperScissors {
@@ -166,6 +185,10 @@ pub mod game_rock_paper_scissors {
             if self.players.len() >= self.configs.max_players.into() {
                 return Err(GameError::MaxPlayersReached);
             }
+
+            if self.players.contains(&player) {
+                return Err(GameError::PlayerAlreadyJoined)
+            };
 
             if let Some(fees) = self.configs.join_fee {
                 if self.env().transferred_value() < fees {
@@ -238,16 +261,19 @@ pub mod game_rock_paper_scissors {
             current_round.player_commits.push((caller, commitment));
             current_round.total_contribution += value;
 
-            // check if all players have committed
-            if current_round.player_commits.len() == self.players.len() {
-                // TODO: emit AllPlayersCommitted event
-            }
-
-            self.env().emit_event(Committed {
+            self.env().emit_event(PlayerCommitted {
                 game_address: self.env().account_id(),
                 player: caller,
                 commitment,
             });
+
+            // check if all players have committed
+            if current_round.player_commits.len() == self.players.len() {
+                Self::env().emit_event(AllPlayersCommitted {
+                    game_address: Self::env().account_id(),
+                    commits: current_round.player_commits.clone(),
+                })
+            }
 
             Ok(())
         }
@@ -275,10 +301,10 @@ pub mod game_rock_paper_scissors {
 
             current_round.player_reveals.push((caller, reveal));
 
-            self.env().emit_event(Revealed {
+            self.env().emit_event(PlayerRevealed {
                 game_address: self.env().account_id(),
                 player: caller,
-                reveal
+                reveal,
             });
 
             Ok(())
@@ -299,31 +325,27 @@ pub mod game_rock_paper_scissors {
             let player1 = current_round.player_reveals[0];
             let player2 = current_round.player_reveals[1];
 
-            let score = (player1.1.0 - player2.1.0) % 3;
-
             let rewards = current_round.total_contribution;
 
             let mut winners = Vec::new();
+            let score = (player1.1 .0 - player2.1 .0) % 3;
 
             match score {
                 1 => {
                     Self::env().transfer(player1.0, rewards);
                     winners.push((player1.0, rewards))
-                },
+                }
                 2 => {
                     Self::env().transfer(player2.0, rewards);
                     winners.push((player2.0, rewards))
-                    // send event round completed
                 }
                 0 => {
                     self.next_round_id += 1;
                     // send event empty vector of winners
-                    return Ok(())
-                },
-
-                _ => {
-                    return Err(GameError::FailedToCloseRound)
+                    return Ok(());
                 }
+
+                _ => return Err(GameError::FailedToCloseRound),
             }
 
             current_round.status = RoundStatus::Ended;
@@ -332,7 +354,7 @@ pub mod game_rock_paper_scissors {
                 game_address: self.env().account_id(),
                 winners,
                 round_id: self.next_round_id,
-                total_contribution: rewards
+                total_contribution: rewards,
             });
 
             Ok(())
@@ -340,8 +362,7 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn force_complete_round(&mut self) -> Result<(), GameError> {
-            // admin level functions
-            // necessary
+            // admin level functions necessary
             todo!("implement")
         }
 
@@ -350,11 +371,11 @@ pub mod game_rock_paper_scissors {
             let current_round = self.current_round.as_mut().unwrap();
 
             if self.status != GameStatus::OnGoing {
-                return Err(GameError::InvalidGameState)
+                return Err(GameError::InvalidGameState);
             }
 
             if current_round.status != RoundStatus::Ended {
-                return Err(GameError::InvalidRoundState)
+                return Err(GameError::InvalidRoundState);
             }
 
             self.status = GameStatus::Ended;
@@ -428,6 +449,18 @@ pub mod game_rock_paper_scissors {
         }
 
         #[ink::test]
+        fn player_cannot_join_twice() {
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            let mut game_rock_paper_scissors = GameRockPaperScissors::default();
+
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            // can join when the caller is alice joining as alice (own account)
+            assert!(game_rock_paper_scissors.join(accounts.alice).is_ok());
+            assert_eq!(game_rock_paper_scissors.join(accounts.alice), Err(GameError::PlayerAlreadyJoined));
+        }
+
+        #[ink::test]
         fn start_game_works() {
             let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
             let mut game_rock_paper_scissors = GameRockPaperScissors::default();
@@ -459,7 +492,10 @@ pub mod game_rock_paper_scissors {
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             ink_env::hash_bytes::<Blake2x256>(&alice_data, &mut commitment);
             ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
-                game_rock_paper_scissors.configs.min_round_contribution.unwrap()
+                game_rock_paper_scissors
+                    .configs
+                    .min_round_contribution
+                    .unwrap(),
             );
 
             let result = game_rock_paper_scissors.play_round(commitment.into());
@@ -478,14 +514,21 @@ pub mod game_rock_paper_scissors {
 
                 // When
                 let contract_account_id = client
-                    .instantiate("game_rock_paper_scissors", &ink_e2e::alice(), constructor, 0, None)
+                    .instantiate(
+                        "game_rock_paper_scissors",
+                        &ink_e2e::alice(),
+                        constructor,
+                        0,
+                        None,
+                    )
                     .await
                     .expect("instantiation failed")
                     .account_id;
 
                 // Then
-                let get_players = ink_e2e::build_message::<GameRockPaperScissorsRef>(contract_account_id.clone())
-                    .call(|test| test.get_players());
+                let get_players =
+                    ink_e2e::build_message::<GameRockPaperScissorsRef>(contract_account_id.clone())
+                        .call(|test| test.get_players());
                 let get_result = client
                     .call_dry_run(&ink_e2e::alice(), &get_players, 0, None)
                     .await;
@@ -495,9 +538,7 @@ pub mod game_rock_paper_scissors {
             }
 
             #[ink_e2e::test]
-            async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2Result<()> {
-
-            }
+            async fn it_works(mut client: ink_e2e::Client<C, E>) -> E2Result<()> {}
         }
     }
 }
