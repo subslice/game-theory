@@ -135,6 +135,7 @@ pub mod game_rock_paper_scissors {
                 min_players: 2,
                 min_round_contribution: Some(1),
                 max_round_contribution: Some(10000),
+                round_reward_multiplier: None,
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,
@@ -240,29 +241,41 @@ pub mod game_rock_paper_scissors {
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
             if self.status != GameStatus::OnGoing {
-                return Err(GameError::GameNotStarted);
+                return Err(GameError::InvalidGameState);
             }
 
             if self.current_round.is_none() {
                 return Err(GameError::NoCurrentRound);
             }
 
+            let current_round = self.current_round.as_mut().unwrap();
+            if current_round.status == RoundStatus::Ready {
+                current_round.status = RoundStatus::OnGoing
+            }
+
+            let caller = Self::env().caller();
+
+            if let Some(p) = current_round
+                .player_commits
+                .iter()
+                .find(|(c, _)| c == &caller) {
+                    return Err(GameError::PlayerAlreadyCommitted);
+                }
+
             if let Some(min_round_contribution) = self.configs.min_round_contribution {
-                if self.env().transferred_value() < min_round_contribution {
+                if Self::env().transferred_value() < min_round_contribution {
                     return Err(GameError::InvalidRoundContribution);
                 }
             }
 
-            let caller = self.env().caller();
-            let value = self.env().transferred_value();
-            let current_round = self.current_round.as_mut().unwrap();
+            let value = Self::env().transferred_value();
 
             current_round.player_contributions.push((caller, value));
             current_round.player_commits.push((caller, commitment));
             current_round.total_contribution += value;
 
-            self.env().emit_event(PlayerCommitted {
-                game_address: self.env().account_id(),
+            Self::env().emit_event(PlayerCommitted {
+                game_address: Self::env().account_id(),
                 player: caller,
                 commitment,
             });
@@ -280,6 +293,10 @@ pub mod game_rock_paper_scissors {
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
+            if reveal.0 < 0 || reveal.0 > 2 {
+                return Err(GameError::InvalidChoice)
+            }
+
             let caller = self.env().caller();
             let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default(); // 256 bit buffer
@@ -413,6 +430,7 @@ pub mod game_rock_paper_scissors {
                 min_players: 2,
                 min_round_contribution: None,
                 max_round_contribution: None,
+                round_reward_multiplier: None,
                 post_round_actions: false,
                 round_timeout: None,
                 max_rounds: None,

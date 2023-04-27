@@ -46,7 +46,11 @@ pub enum GameError {
     /// Failed to issue winner rewards
     FailedToIssueWinnerRewards,
     /// Player is already in the game
-    PlayerAlreadyJoined
+    PlayerAlreadyJoined,
+    /// Player already played n this round
+    PlayerAlreadyCommitted,
+    /// Player choice for the round is not valid
+    InvalidChoice
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
