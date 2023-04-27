@@ -14,6 +14,19 @@ pub mod game_rock_paper_scissors {
         Scissors, // 2
     }
 
+    impl TryFrom<u8> for Choice {
+        type Error = GameError;
+
+        fn try_from(value: u8) -> Result<Self, Self::Error> {
+            match value {
+                0 => Ok(Choice::Rock),
+                1 => Ok(Choice::Paper),
+                2 => Ok(Choice::Scissors),
+                _ => Err(GameError::InvalidChoice),
+            }
+        }
+    }
+
     #[ink(event)]
     pub struct GameCreated {
         #[ink(topic)]
@@ -349,11 +362,13 @@ pub mod game_rock_paper_scissors {
 
             match score {
                 1 => {
-                    Self::env().transfer(player1.0, rewards);
+                    Self::env().transfer(player1.0, rewards)
+                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player1.0, rewards))
                 }
                 2 => {
-                    Self::env().transfer(player2.0, rewards);
+                    Self::env().transfer(player2.0, rewards)
+                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player2.0, rewards))
                 }
                 0 => {
