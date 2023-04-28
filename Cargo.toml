@@ -37,4 +37,4 @@ ink-as-dependency = []
 members = ["contracts/*"]
 
 [toolchain]
-channel = "nightly"
+channel = "nightly-2023-02-07"
