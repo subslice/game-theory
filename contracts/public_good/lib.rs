@@ -4,9 +4,9 @@ pub use self::public_good::{PublicGood, PublicGoodRef};
 
 #[ink::contract]
 pub mod public_good {
-    use game_theory::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
-    use game_theory::traits::lifecycle::*;
-    use game_theory::traits::utils::*;
+    use logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
+    use logics::traits::lifecycle::*;
+    use logics::traits::utils::*;
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
 

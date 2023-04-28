@@ -6,11 +6,8 @@ pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 pub mod rock_paper_scissors {
     use ink::prelude::vec::Vec;
     use ink_env::hash::{Blake2x256, HashOutput};
-    use game_theory::traits::types::{GameConfigs, GameError, GameRound, GameStatus, RoundStatus};
-    use game_theory::traits::lifecycle::*;
-    use openbrush::traits::DefaultEnv;
-    use ink::codegen::EmitEvent;
-    use ink::codegen::Env;
+    use logics::traits::types::{GameConfigs, GameError, GameRound, GameStatus, RoundStatus};
+    use logics::traits::lifecycle::*;
 
     enum Choice {
         Rock,     // 0
@@ -110,9 +107,9 @@ pub mod rock_paper_scissors {
         /// Constructor that initializes the RockPaperScissors struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
-            // let game_address = <Self as DefaultEnv>::env().account_id();
-            // let game_id = <Self as DefaultEnv>::env().code_hash(&game_address).unwrap();
-            // let creator = <Self as DefaultEnv>::env().caller();
+            // let game_address = Self::env().account_id();
+            // let game_id = Self::env().code_hash(&game_address).unwrap();
+            // let creator = Self::env().caller();
 
             // Self::env().emit_event(GameCreated {
             //     game_id,
@@ -121,7 +118,7 @@ pub mod rock_paper_scissors {
             // });
 
             Self {
-                creator: <Self as DefaultEnv>::env().caller(),
+                creator: Self::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Ready,
                 rounds: Vec::new(),
@@ -183,7 +180,7 @@ pub mod rock_paper_scissors {
 
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
-            if <Self as DefaultEnv>::env().caller() != player {
+            if Self::env().caller() != player {
                 return Err(GameError::CallerMustMatchNewPlayer);
             }
 
@@ -196,7 +193,7 @@ pub mod rock_paper_scissors {
             };
 
             if let Some(fees) = self.configs.join_fee {
-                if <Self as DefaultEnv>::env().transferred_value() < fees {
+                if Self::env().transferred_value() < fees {
                     return Err(GameError::InsufficientJoiningFees);
                 }
             }
@@ -204,8 +201,8 @@ pub mod rock_paper_scissors {
             self.players.push(player);
 
             Self::env().emit_event(PlayerJoined {
-                game_address: <Self as DefaultEnv>::env().account_id(),
-                player: <Self as DefaultEnv>::env().caller(),
+                game_address: Self::env().account_id(),
+                player: Self::env().caller(),
             });
 
             Ok(self.players.len() as u8)
@@ -235,7 +232,7 @@ pub mod rock_paper_scissors {
             self.next_round_id += 1;
 
             Self::env().emit_event(GameStarted {
-                game_address: <Self as DefaultEnv>::env().account_id(),
+                game_address: Self::env().account_id(),
                 players: self.players.clone(),
             });
 
@@ -257,7 +254,7 @@ pub mod rock_paper_scissors {
                 current_round.status = RoundStatus::OnGoing
             }
 
-            let caller = <Self as DefaultEnv>::env().caller();
+            let caller = Self::env().caller();
 
             if let Some(p) = current_round
                 .player_commits
@@ -267,19 +264,19 @@ pub mod rock_paper_scissors {
                 }
 
             if let Some(min_round_contribution) = self.configs.min_round_contribution {
-                if <Self as DefaultEnv>::env().transferred_value() < min_round_contribution {
+                if Self::env().transferred_value() < min_round_contribution {
                     return Err(GameError::InvalidRoundContribution);
                 }
             }
 
-            let value = <Self as DefaultEnv>::env().transferred_value();
+            let value = Self::env().transferred_value();
 
             current_round.player_contributions.push((caller, value));
             current_round.player_commits.push((caller, commitment));
             current_round.total_contribution += value;
 
             Self::env().emit_event(PlayerCommitted {
-                game_address: <Self as DefaultEnv>::env().account_id(),
+                game_address: Self::env().account_id(),
                 player: caller,
                 commitment,
             });
@@ -287,7 +284,7 @@ pub mod rock_paper_scissors {
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
                 Self::env().emit_event(AllPlayersCommitted {
-                    game_address: <Self as DefaultEnv>::env().account_id(),
+                    game_address: Self::env().account_id(),
                     commits: current_round.player_commits.clone(),
                 })
             }
@@ -301,7 +298,7 @@ pub mod rock_paper_scissors {
                 return Err(GameError::InvalidChoice)
             }
 
-            let caller = <Self as DefaultEnv>::env().caller();
+            let caller = Self::env().caller();
             let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default(); // 256 bit buffer
             ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
@@ -323,7 +320,7 @@ pub mod rock_paper_scissors {
             current_round.player_reveals.push((caller, reveal));
 
             Self::env().emit_event(PlayerRevealed {
-                game_address: <Self as DefaultEnv>::env().account_id(),
+                game_address: Self::env().account_id(),
                 player: caller,
                 reveal,
             });
@@ -353,11 +350,11 @@ pub mod rock_paper_scissors {
 
             match score {
                 1 => {
-                    <Self as DefaultEnv>::env().transfer(player1.0, rewards);
+                    Self::env().transfer(player1.0, rewards);
                     winners.push((player1.0, rewards))
                 }
                 2 => {
-                    <Self as DefaultEnv>::env().transfer(player2.0, rewards);
+                    Self::env().transfer(player2.0, rewards);
                     winners.push((player2.0, rewards))
                 }
                 0 => {
@@ -372,7 +369,7 @@ pub mod rock_paper_scissors {
             current_round.status = RoundStatus::Ended;
 
             Self::env().emit_event(RoundEnded {
-                game_address: <Self as DefaultEnv>::env().account_id(),
+                game_address: Self::env().account_id(),
                 winners,
                 round_id: self.next_round_id,
                 total_contribution: rewards,
@@ -402,11 +399,11 @@ pub mod rock_paper_scissors {
             self.status = GameStatus::Ended;
 
             Self::env().emit_event(GameEnded {
-                game_address: <Self as DefaultEnv>::env().account_id(),
+                game_address: Self::env().account_id(),
                 rounds_played: self.next_round_id,
             });
 
-            <Self as DefaultEnv>::env().terminate_contract(self.creator);
+            Self::env().terminate_contract(self.creator);
         }
     }
 
