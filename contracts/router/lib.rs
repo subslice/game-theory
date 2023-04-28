@@ -1,9 +1,9 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[ink::contract]
-mod games_router {
-    use game_public_good::GamePublicGoodRef;
-    use game_rock_paper_scissors::GameRockPaperScissorsRef;
+#[openbrush::contract]
+mod router {
+    // use public_good::PublicGoodRef;
+    // use rock_paper_scissors::RockPaperScissorsRef;
     use ink::storage::Mapping;
 
     /// Game types.
@@ -12,7 +12,7 @@ mod games_router {
         feature = "std",
         derive(ink::storage::traits::StorageLayout, scale_info::TypeInfo)
     )]
-    pub enum WhichGame {
+    pub enum Game {
         RockPaperScissors,
         PublicGood,
     }
@@ -27,9 +27,9 @@ mod games_router {
     }
 
     #[ink(storage)]
-    pub struct GamesRouter {
+    pub struct Router {
         owner: AccountId,
-        game_hashes: Mapping<WhichGame, Hash>,
+        game_hashes: Mapping<Game, Hash>,
         games_count: u32,
     }
 
@@ -48,7 +48,7 @@ mod games_router {
      *
      */
 
-    impl GamesRouter {
+    impl Router {
         /// Helper method to ensure that the caller is the contract owner.
         fn ensure_owner(&self) -> Result<(), RouterError> {
             if self.env().caller() != self.owner {
@@ -78,14 +78,14 @@ mod games_router {
         }
 
         #[ink(message)]
-        pub fn get_game_hash(&self, which: WhichGame) -> Result<Hash, RouterError> {
+        pub fn get_game_hash(&self, which: Game) -> Result<Hash, RouterError> {
             self.game_hashes
                 .get(&which)
                 .ok_or(RouterError::HashNotFoundForGame)
         }
 
         #[ink(message, payable)]
-        pub fn set_game_hash(&mut self, which: WhichGame, hash: Hash) -> Result<(), RouterError> {
+        pub fn set_game_hash(&mut self, which: Game, hash: Hash) -> Result<(), RouterError> {
             self.ensure_owner()?;
             self.game_hashes.insert(which, &hash);
             Ok(())
@@ -93,33 +93,34 @@ mod games_router {
 
         /// A methods that adds a game and instantiates its contract.
         #[ink(message, payable)]
-        pub fn new_game(&mut self, which: WhichGame) -> Result<(), RouterError> {
+        pub fn new_game(&mut self, which: Game) -> Result<(), RouterError> {
             let game_hash = self.get_game_hash(which)?;
 
             self.games_count += 1;
 
-            match which {
-                WhichGame::RockPaperScissors => {
-                    let game = GameRockPaperScissorsRef::default()
-                        .code_hash(game_hash)
-                        .endowment(self.env().transferred_value())
-                        .gas_limit(0)
-                        .salt_bytes(self.games_count.to_le_bytes())
-                        .instantiate();
+            // match which {
+            //     Game::RockPaperScissors => {
+            //         let game = RockPaperScissorsRef::default()
+            //             .code_hash(game_hash)
+            //             .endowment(self.env().transferred_value())
+            //             .gas_limit(0)
+            //             .salt_bytes(self.games_count.to_le_bytes())
+            //             .instantiate();
 
-                    Ok(())
-                }
-                WhichGame::PublicGood => {
-                    let game = GamePublicGoodRef::default()
-                        .code_hash(game_hash)
-                        .endowment(self.env().transferred_value())
-                        .gas_limit(0)
-                        .salt_bytes(self.games_count.to_le_bytes())
-                        .instantiate();
+            //         Ok(())
+            //     }
+            //     Game::PublicGood => {
+            //         let game = PublicGoodRef::default()
+            //             .code_hash(game_hash)
+            //             .endowment(self.env().transferred_value())
+            //             .gas_limit(0)
+            //             .salt_bytes(self.games_count.to_le_bytes())
+            //             .instantiate();
 
-                    Ok(())
-                }
-            }
+            //         Ok(())
+            //     }
+            // }
+            Ok(())
         }
     }
 }
