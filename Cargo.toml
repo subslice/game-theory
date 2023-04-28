@@ -34,5 +34,7 @@ std = [
 ink-as-dependency = []
 
 [workspace]
-
 members = ["contracts/*"]
+
+[toolchain]
+channel = "nightly"

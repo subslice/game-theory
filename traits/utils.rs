@@ -1,5 +1,3 @@
-#![cfg_attr(not(feature = "std"), no_std)]
-
 use ink::primitives::AccountId;
 use ink::prelude::vec::Vec;
 
