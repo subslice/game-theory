@@ -4,7 +4,7 @@ use ink::prelude::vec::Vec;
 use crate::traits::types::*;
 
 /// Defines the basic game lifecycle methods.
-#[openbrush::trait_definition]
+#[ink::trait_definition]
 pub trait Lifecycle {
     /// Gets the AccountId of each each player within this instance of the game.
     #[ink(message)]

@@ -2,7 +2,7 @@
 
 pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 
-#[openbrush::contract]
+#[ink::contract]
 pub mod rock_paper_scissors {
     use ink::prelude::vec::Vec;
     use ink_env::hash::{Blake2x256, HashOutput};

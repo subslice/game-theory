@@ -1,6 +1,6 @@
+use ink::primitives::{AccountId, Hash};
 use scale::{Decode, Encode};
 use ink::prelude::vec::Vec;
-use openbrush::traits::{AccountId, Hash};
 use ink::storage::traits::StorageLayout;
 
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
