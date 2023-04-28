@@ -123,7 +123,6 @@ pub mod public_good {
                 created_by: <Self as DefaultEnv>::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Ready,
-                rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
                 configs,
@@ -225,7 +224,7 @@ pub mod public_good {
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
             match (self.players.len(), self.status) {
-                (_, status) if status != GameStatus::Initialized => {
+                (_, status) if status != GameStatus::Ready => {
                     return Err(GameError::InvalidGameState)
                 }
                 (players, _) if players < self.configs.min_players as usize => {
@@ -244,7 +243,7 @@ pub mod public_good {
                 total_reward: 0,
             });
             self.next_round_id += 1;
-            self.status = GameStatus::Started;
+            self.status = GameStatus::OnGoing;
 
             // emit event
             self.env().emit_event(GameStarted {
@@ -257,7 +256,7 @@ pub mod public_good {
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
             match (self.status, self.current_round.is_none(), self.env().transferred_value()) {
-                (status, _, _) if status != GameStatus::Started => {
+                (status, _, _) if status != GameStatus::OnGoing => {
                     return Err(GameError::GameNotStarted)
                 },
                 (_, true, _) => {
