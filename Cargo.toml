@@ -1,9 +1,5 @@
 [workspace]
+members = ["contracts/*"]
 
-members = [
-    "contracts/games_router",
-    "contracts/game_rock_paper_scissors",
-    "contracts/game_public_good",
-    "contracts/traits"
-]
-
+[toolchain]
+channel = "nightly-2023-02-07"

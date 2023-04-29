@@ -1,25 +1,24 @@
 [package]
-name = "traits"
-version = "0.1.0"
-authors = ["Faisal <faisal.al.tameemi@gmail.com>"]
+name = "logics"
+version = "0.3.0"
+authors = ["_ <example@email.com>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "4.1", default-features = false }
-
+ink = { version = "4.0.0", default-features = false }
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
+openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", version = "^3.0.0", default-features = false }
 
 [lib]
-name = "traits"
 path = "lib.rs"
-crate-type = ["rlib"]
 
 [features]
 default = ["std"]
 std = [
     "ink/std",
     "scale/std",
+    "scale-info",
     "scale-info/std",
+    "openbrush/std"
 ]
-ink-as-dependency = []
