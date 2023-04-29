@@ -304,15 +304,10 @@ pub mod public_good {
                 .iter()
                 .find(|(player, _)| player == &caller);
 
-            // check if the reveal is valid
-            match player_commitment {
-                Some((_, commitment)) => {
-                    if commitment != &output.into() {
-                        return Err(GameError::InvalidReveal)
-                    }
-                }
-                None => return Err(GameError::CommitmentNotFound),
-            }
+            // ensure that the commitment exists
+            ensure!(player_commitment.is_some(), GameError::CommitmentNotFound);
+            // ensure that the reveal is valid
+            ensure!(player_commitment.unwrap().1 == output.into(), GameError::InvalidReveal);
 
             // return the partial contribution to the player
             // this is done because all players contribute the max amount when making a commitment
