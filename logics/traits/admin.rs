@@ -1,6 +1,5 @@
 use crate::traits::types::GameError;
 
-
 #[ink::trait_definition]
 pub trait GameAdmin {
     #[ink(message)]

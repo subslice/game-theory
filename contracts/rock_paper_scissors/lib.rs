@@ -6,6 +6,7 @@ pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 pub mod rock_paper_scissors {
     use ink::prelude::vec::Vec;
     use ink_env::hash::{Blake2x256, HashOutput};
+    use logics::traits::basic::Basic;
     use logics::traits::types::{GameConfigs, GameError, GameRound, GameStatus, RoundStatus};
     use logics::traits::lifecycle::*;
 
@@ -157,7 +158,7 @@ pub mod rock_paper_scissors {
 
     }
 
-    impl Lifecycle for RockPaperScissors {
+    impl Basic for RockPaperScissors {
         #[ink(message)]
         fn get_configs(&self) -> GameConfigs {
             self.configs.clone()
@@ -207,7 +208,9 @@ pub mod rock_paper_scissors {
 
             Ok(self.players.len() as u8)
         }
+    }
 
+    impl Lifecycle for RockPaperScissors {
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
             if self.players.len() < self.configs.min_players.into() {

@@ -4,6 +4,7 @@ pub use self::public_good::{PublicGood, PublicGoodRef};
 
 #[ink::contract]
 pub mod public_good {
+    use logics::traits::basic::Basic;
     use logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
     use logics::traits::lifecycle::*;
     use logics::traits::utils::*;
@@ -144,6 +145,7 @@ pub mod public_good {
             })
         }
 
+        /// Internal methods
         pub fn emit_game_created(&self) -> Result<(), GameError> {
             let game_address = self.env().account_id();
             let game_hash = self.env().code_hash(&game_address).unwrap();
@@ -164,6 +166,7 @@ pub mod public_good {
             Ok(())
         }
 
+        // TODO: remove
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
@@ -173,8 +176,7 @@ pub mod public_good {
         }
     }
 
-    /// An implementation of the `GameLifecycle` trait for the `PublicGood` contract.
-    impl Lifecycle for PublicGood {
+    impl Basic for PublicGood {
         #[ink(message)]
         fn get_configs(&self) -> GameConfigs {
             self.configs.clone()
@@ -214,7 +216,10 @@ pub mod public_good {
             });
             Ok(self.players.len() as u8)
         }
+    }
 
+    /// An implementation of the `GameLifecycle` trait for the `PublicGood` contract.
+    impl Lifecycle for PublicGood {
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
             // ensure game status is valid for state change
