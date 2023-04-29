@@ -20,4 +20,3 @@ pub trait GameAdmin {
     #[ink(message, payable)]
     fn fund_contract(&self) -> Result<(), GameError>;
 }
-
