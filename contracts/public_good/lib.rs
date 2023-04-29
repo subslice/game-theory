@@ -7,6 +7,7 @@ pub mod public_good {
     use logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
     use logics::traits::lifecycle::*;
     use logics::traits::utils::*;
+    use logics::ensure;
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
 
@@ -196,21 +197,17 @@ pub mod public_good {
 
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
-            if self.env().caller() != player {
-                return Err(GameError::CallerMustMatchNewPlayer)
-            }
-
-            if self.players.len() >= self.configs.max_players as usize {
-                return Err(GameError::MaxPlayersReached)
-            }
-
+            // ensure that joining is only done by caller
+            ensure!(self.env().caller() == player, GameError::CallerMustMatchNewPlayer);
+            // ensure that there's more room in the game
+            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            // ensure applicable fees are paid
             if let Some(fees) = self.configs.join_fee {
-                if self.env().transferred_value() < Balance::from(fees) {
-                    return Err(GameError::InsufficientJoiningFees);
-                }
+                ensure!(self.env().transferred_value() >= Balance::from(fees), GameError::InsufficientJoiningFees);
             }
-
+            // add player to state
             self.players.push(player);
+            // emit PlayerJoined event
             self.env().emit_event(PlayerJoined {
                 game_address: self.env().account_id(),
                 player,
@@ -220,16 +217,12 @@ pub mod public_good {
 
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
-            match (self.players.len(), self.status) {
-                (_, status) if status != GameStatus::Ready => {
-                    return Err(GameError::InvalidGameState)
-                }
-                (players, _) if players < self.configs.min_players as usize => {
-                    return Err(GameError::NotEnoughPlayers)
-                }
-                _ => (),
-            }
+            // ensure game status is valid for state change
+            ensure!(self.status == GameStatus::Ready, GameError::InvalidGameState);
+            // ensure enough players
+            ensure!(self.players.len() >= self.configs.min_players as usize, GameError::NotEnoughPlayers);
 
+            // setup the current round
             self.current_round = Some(GameRound {
                 id: self.next_round_id,
                 status: RoundStatus::Ready,
@@ -240,13 +233,12 @@ pub mod public_good {
                 total_reward: 0,
             });
             self.next_round_id += 1;
+            // update game state
             self.status = GameStatus::OnGoing;
-
-            // emit event
+            // emit GameStarted event
             self.env().emit_event(GameStarted {
                 game_address: self.env().account_id(),
             });
-
             Ok(())
         }
 
