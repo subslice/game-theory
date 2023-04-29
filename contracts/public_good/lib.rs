@@ -335,20 +335,13 @@ pub mod public_good {
         fn complete_round(&mut self) -> Result<(), GameError> {
             let current_round = self.current_round.as_mut().unwrap();
 
-            match current_round {
-                // check if all players have revealed
-                round if round.player_reveals.len() != self.players.len() => {
-                    return Err(GameError::NotAllPlayersRevealed)
-                },
-                // check if the round has already ended
-                round if round.status == RoundStatus::Ended => {
-                    return Err(GameError::InvalidGameState)
-                },
-                _ => ()
-            }
+            // ensure all players have revealed
+            ensure!(current_round.player_reveals.len() == self.players.len(), GameError::NotAllPlayersRevealed);
+            // ensure round state is still valid
+            ensure!(current_round.status != RoundStatus::Ended, GameError::InvalidGameState);
 
+            // mark round as ended
             current_round.status = RoundStatus::Ended;
-
             // get winners
             let winners = PublicGood::get_winners(
                     &current_round,
@@ -407,10 +400,8 @@ pub mod public_good {
 
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
-            if self.status != GameStatus::Ended {
-                return Err(GameError::InvalidGameState)
-            }
-
+            // ensure the game is in ended state
+            ensure!(self.status == GameStatus::Ended, GameError::InvalidGameState);
             // terminate the contract and send remaining balance to the contract's creator
             self.env().terminate_contract(self.created_by);
         }
@@ -768,7 +759,7 @@ pub mod public_good {
 
                         // match the event type for the data
                         match decoded_event {
-                            Event::RoundCompleted(data) => {
+                            Event::RoundCompleted(_data) => {
                                 println!("Round Completed");
                                 found = true;
                             },
