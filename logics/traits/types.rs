@@ -1,4 +1,4 @@
-use ink::primitives::{AccountId, Hash};
+use openbrush::traits::{AccountId, Hash};
 use scale::{Decode, Encode};
 use ink::prelude::vec::Vec;
 use ink::storage::traits::StorageLayout;

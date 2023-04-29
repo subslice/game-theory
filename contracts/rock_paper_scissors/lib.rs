@@ -2,13 +2,18 @@
 
 pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 
-#[ink::contract]
+#[openbrush::contract]
 pub mod rock_paper_scissors {
+    use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
+    use game_theory::logics::traits::lifecycle::*;
+    use game_theory::logics::traits::basic::*;
+    use game_theory::logics::traits::utils::*;
+    use game_theory::ensure;
     use ink::prelude::vec::Vec;
-    use ink_env::hash::{Blake2x256, HashOutput};
-    use logics::traits::basic::Basic;
-    use logics::traits::types::{GameConfigs, GameError, GameRound, GameStatus, RoundStatus};
-    use logics::traits::lifecycle::*;
+    use ink::env::hash::{Blake2x256, HashOutput};
+    use openbrush::traits::{DefaultEnv, Storage};
+    use ink::codegen::EmitEvent;
+    use ink::codegen::Env;
 
     enum Choice {
         Rock,     // 0
@@ -87,6 +92,7 @@ pub mod rock_paper_scissors {
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
     #[ink(storage)]
+    #[derive(Storage)]
     pub struct RockPaperScissors {
         /// Stores the list of players for this game instance
         players: Vec<AccountId>,
@@ -119,7 +125,7 @@ pub mod rock_paper_scissors {
             // });
 
             Self {
-                creator: Self::env().caller(),
+                creator: <Self as DefaultEnv>::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Ready,
                 rounds: Vec::new(),

@@ -1,6 +1,6 @@
-use crate::traits::types::GameError;
+use super::types::GameError;
 
-#[ink::trait_definition]
+#[openbrush::trait_definition]
 pub trait GameAdmin {
     #[ink(message)]
     fn add_player_to_game(&mut self) -> Result<(), GameError>;

@@ -1,9 +1,8 @@
-use ink::primitives::Hash;
-
-use crate::traits::types::*;
+use openbrush::traits::Hash;
+use super::types::*;
 
 /// Defines the basic game lifecycle methods.
-#[ink::trait_definition]
+#[openbrush::trait_definition]
 pub trait Lifecycle {
     /// callable by any player who joined
     /// only works once, fails on subsequent calls (since the state has changed)

@@ -1,10 +1,9 @@
-use ink::primitives::AccountId;
+use openbrush::traits::AccountId;
 use ink::prelude::vec::Vec;
-
-use crate::traits::types::*;
+use super::types::*;
 
 /// Defines the basic game lifecycle methods.
-#[ink::trait_definition]
+#[openbrush::trait_definition]
 pub trait Basic {
     /// Gets the AccountId of each each player within this instance of the game.
     #[ink(message)]
