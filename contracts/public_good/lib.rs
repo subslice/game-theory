@@ -244,26 +244,20 @@ pub mod public_good {
 
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
-            match (self.status, self.current_round.is_none(), self.env().transferred_value()) {
-                (status, _, _) if status != GameStatus::OnGoing => {
-                    return Err(GameError::GameNotStarted)
-                },
-                (_, true, _) => {
-                    return Err(GameError::NoCurrentRound)
-                },
-                (_, _, value) if value < Balance::from(self.configs.max_round_contribution.unwrap_or(0)) => {
-                    // NOTE: the issue here is since this game is publicgood, some amount has to be
-                    // contributed to the pot. So, we need to check if the player has contributed
-                    // that amount. But we also don't want to reveal the contribution :)
-                    // one way is to have the payable amount always be fixed and be maxed out
-                    // while the hashed commitment contains the real amount to be contributed.
-                    return Err(GameError::InvalidRoundContribution)
-                },
-                _ => ()
-            }
+            // ensure valid game state
+            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            // ensure current round exists
+            ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
+
+            let value = self.env().transferred_value();
+            // NOTE: the issue here is since this game is publicgood, some amount has to be
+            // contributed to the pot. So, we need to check if the player has contributed
+            // that amount. But we also don't want to reveal the contribution :)
+            // one way is to have the payable amount always be fixed and be maxed out
+            // while the hashed commitment contains the real amount to be contributed.
+            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
 
             let caller = self.env().caller();
-            let value = self.env().transferred_value();
             let current_round = self.current_round.as_mut().unwrap();
 
             // store the commit
