@@ -326,7 +326,7 @@ pub mod rock_paper_scissors {
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
-            if reveal.0 < 0 || reveal.0 > 2 {
+            if reveal.0 > 2 {
                 return Err(GameError::InvalidChoice)
             }
 
@@ -382,11 +382,13 @@ pub mod rock_paper_scissors {
 
             match score {
                 1 => {
-                    Self::env().transfer(player1.0, rewards);
+                    Self::env().transfer(player1.0, rewards)
+                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player1.0, rewards))
                 }
                 2 => {
-                    Self::env().transfer(player2.0, rewards);
+                    Self::env().transfer(player2.0, rewards)
+                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player2.0, rewards))
                 }
                 0 => {
