@@ -202,6 +202,7 @@ pub mod public_good {
     impl AccessControl for PublicGood {}
     impl AccessControlEnumerable for PublicGood {}
 
+    /// An implementation of the basic ink! storage getters / setters
     impl Basic for PublicGood {
         #[ink(message)]
         fn get_configs(&self) -> GameConfigs {
@@ -438,6 +439,7 @@ pub mod public_good {
         }
     }
 
+    /// An implementation of the `Utils` trait containing internal helper functions
     impl Utils for PublicGood {
         fn get_winners(round: &GameRound, configs: &GameConfigs, _players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
             if round.status != RoundStatus::Ended {
