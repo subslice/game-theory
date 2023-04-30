@@ -7,13 +7,16 @@ pub mod rock_paper_scissors {
     use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
     use game_theory::logics::traits::lifecycle::*;
     use game_theory::logics::traits::basic::*;
-    use game_theory::logics::traits::utils::*;
-    use game_theory::ensure;
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
+    use openbrush::modifiers;
     use openbrush::traits::{DefaultEnv, Storage};
+    use openbrush::contracts::access_control::extensions::enumerable::*;
+    use openbrush::contracts::access_control::only_role;
     use ink::codegen::EmitEvent;
-    use ink::codegen::Env;
+
+    /// Access control roles
+    const CREATOR: RoleType = ink::selector_id!("CREATOR");
 
     enum Choice {
         Rock,     // 0
@@ -24,7 +27,7 @@ pub mod rock_paper_scissors {
     #[ink(event)]
     pub struct GameCreated {
         #[ink(topic)]
-        game_id: Hash,
+        game_id: AccountId,
         #[ink(topic)]
         creator: AccountId,
         #[ink(topic)]
@@ -94,6 +97,8 @@ pub mod rock_paper_scissors {
     #[ink(storage)]
     #[derive(Storage)]
     pub struct RockPaperScissors {
+        #[storage_field]
+        access: access_control::Data<enumerable::Members>,
         /// Stores the list of players for this game instance
         players: Vec<AccountId>,
         /// The status of the current game
@@ -114,17 +119,8 @@ pub mod rock_paper_scissors {
         /// Constructor that initializes the RockPaperScissors struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
-            // let game_address = Self::env().account_id();
-            // let game_id = Self::env().code_hash(&game_address).unwrap();
-            // let creator = Self::env().caller();
-
-            // Self::env().emit_event(GameCreated {
-            //     game_id,
-            //     creator,
-            //     configs: configs.clone(),
-            // });
-
-            Self {
+            let mut instance = Self {
+                access: Default::default(),
                 creator: <Self as DefaultEnv>::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Ready,
@@ -132,7 +128,13 @@ pub mod rock_paper_scissors {
                 current_round: None,
                 next_round_id: 1,
                 configs,
-            }
+            };
+            let caller = <Self as DefaultEnv>::env().caller();
+
+            instance._init_with_admin(caller);
+            instance.grant_role(CREATOR, caller).expect("Should grant CREATOR role");
+
+            instance
         }
 
         /// A default constructor that initializes this game with 2 players
@@ -152,6 +154,28 @@ pub mod rock_paper_scissors {
             })
         }
 
+        /// Internal methods
+        #[modifiers(only_role(CREATOR))]
+        pub fn emit_game_created(&mut self) -> Result<(), GameError> {
+            self.env().emit_event(GameCreated {
+                game_id: self.env().account_id(),
+                creator: self.creator,
+                configs: self.configs.clone(),
+            });
+
+            Ok(())
+        }
+
+        #[modifiers(only_role(CREATOR))]
+        pub fn emit_game_started(&mut self) -> Result<(), GameError> {
+            self.env().emit_event(GameStarted {
+                game_address: self.env().account_id(),
+                players: self.players.clone(),
+            });
+
+            Ok(())
+        }
+
         // testing purposes only
         // this operation should be done by the UI/frontend
         #[ink(message)]
@@ -161,7 +185,6 @@ pub mod rock_paper_scissors {
             ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
             Ok(output.into())
         }
-
     }
 
     impl Basic for RockPaperScissors {
@@ -529,6 +552,25 @@ pub mod rock_paper_scissors {
             let result = rock_paper_scissors.play_round(commitment.into());
 
             assert_eq!(result, Ok(()));
+        }
+
+        #[ink::test]
+        fn only_contract_creator_can_emit_start_event() {
+            let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
+
+            // create the game as alice
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            let mut game = RockPaperScissors::default();
+
+            // attempt to emit the start event as bob
+            // expect failure
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
+            matches!(game.emit_game_started(), Err(GameError::AccessControlError(_)));
+
+            // attempt to emit the stat event as alice
+            // expect success
+            ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
+            assert!(game.emit_game_started().is_ok());
         }
 
         #[cfg(all(test, feature = "e2e-tests"))]

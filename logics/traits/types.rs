@@ -7,6 +7,7 @@ use ink::storage::traits::StorageLayout;
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum GameError {
+    /// Wrapper for events emitted from the access-control openbrush contract
     AccessControlError(AccessControlError),
     FailedToEmitEvent,
     FailedToGetWinners,
