@@ -292,6 +292,12 @@ pub mod public_good {
             let caller = Self::env().caller();
             let current_round = self.current_round.as_mut().unwrap();
 
+            // ensure that the player hasn't already made a commitment
+            ensure!(
+                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                GameError::PlayerAlreadyCommitted
+            );
+
             // store the commit
             current_round.player_commits.push((
                 caller.clone(),
@@ -462,6 +468,9 @@ pub mod public_good {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use ink::env::test::EmittedEvent;
+
+        type Event = <PublicGood as ::ink::reflect::ContractEventBase>::Type;
 
         struct SetupTestGame {
             join_game: bool,
@@ -749,8 +758,6 @@ pub mod public_good {
             };
         }
 
-        type Event = <PublicGood as ::ink::reflect::ContractEventBase>::Type;
-
         /// Players can complete a round.
         #[ink::test]
         fn players_can_complete_round() {
@@ -779,12 +786,10 @@ pub mod public_good {
                     // check that the round ID has been incremented
                     assert_eq!(game_public_good.next_round_id, 3);
                     // check that the relevant round completion event is emitted
-                    let events = ink::env::test::recorded_events().collect::<Vec<_>>();
+                    let events: Vec<EmittedEvent> = ink::env::test::recorded_events().collect::<Vec<_>>();
 
                     // ensure the relevant event is emitted
-                    // TODO: refactor this mess
                     let mut found: bool = false;
-                    println!("Found {:?} events", events.len());
                     for e in events {
                         // decode the event
                         let decoded_event = <Event as scale::Decode>::decode(&mut &e.data[..])
@@ -793,23 +798,10 @@ pub mod public_good {
                         // match the event type for the data
                         match decoded_event {
                             Event::RoundCompleted(_data) => {
-                                println!("Round Completed");
                                 found = true;
+                                break;
                             },
-                            // Event::RoundCommitPlayed(data) => {
-                            //     match data {
-                            //         RoundCommitPlayed {
-                            //             game_address,
-                            //             player,
-                            //             commitment,
-                            //         } => {
-                            //             println!("RoundCommitPlayed: {:?}", data);
-                            //         },
-                            //     }
-                            // },
-                            _ => {
-                                println!("Unknown event");
-                            }
+                            _ => ()
                         }
                     }
 
