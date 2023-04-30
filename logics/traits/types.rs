@@ -1,3 +1,4 @@
+use openbrush::contracts::access_control::AccessControlError;
 use openbrush::traits::{AccountId, Hash};
 use scale::{Decode, Encode};
 use ink::prelude::vec::Vec;
@@ -6,6 +7,7 @@ use ink::storage::traits::StorageLayout;
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
 pub enum GameError {
+    AccessControlError(AccessControlError),
     FailedToEmitEvent,
     FailedToGetWinners,
     /// Caller must match the palyer being added
@@ -48,6 +50,12 @@ pub enum GameError {
     PlayerAlreadyCommitted,
     /// Player choice for the round is not valid
     InvalidChoice
+}
+
+impl From<AccessControlError> for GameError {
+    fn from(error: AccessControlError) -> Self {
+        GameError::AccessControlError(error)
+    }
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
