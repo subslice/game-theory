@@ -103,3 +103,5 @@ pub struct GameConfigs {
     pub join_fee: Option<u128>,
     pub is_rounds_based: bool,
 }
+
+

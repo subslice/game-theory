@@ -14,7 +14,6 @@ scale-info = { version = "2.3", default-features = false, features = ["derive"],
 # These dependencies
 openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", version = "^3.0.0", default-features = false, features = ["access_control"] }
 
-
 [lib]
 name = "game_theory"
 path = "lib.rs"
