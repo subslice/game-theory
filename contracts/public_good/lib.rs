@@ -6,9 +6,7 @@ pub use self::public_good::{PublicGood, PublicGoodRef};
 #[openbrush::contract]
 pub mod public_good {
     use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
-    use game_theory::logics::traits::lifecycle::*;
-    use game_theory::logics::traits::basic::*;
-    use game_theory::logics::traits::utils::*;
+    use game_theory::logics::traits::{ basic::*, lifecycle::*, utils::*, admin::* };
     use game_theory::ensure;
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
@@ -462,6 +460,11 @@ pub mod public_good {
 
             Ok(winners)
         }
+    }
+
+    /// An implementation of Admin-level functions for the `PublicGood` contract.
+    impl Admin for PublicGood {
+
     }
 
     /// Unit tests.
