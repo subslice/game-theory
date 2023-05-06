@@ -1,7 +1,8 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[ink::contract(env = crate::CustomEnvironment)]
+#[ink::contract(env = CustomEnvironment)]
 mod dictator {
+    use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
 
     /// Defines the storage of your contract.
     /// Add new fields to the below struct in order
@@ -23,13 +24,13 @@ mod dictator {
         /// random source. Then, update the current `value` stored in this contract with the
         /// new random value.
         #[ink(message)]
-        pub fn get_random_value(&mut self, subject: [u8; 32]) -> Result<(), crate::RandomReadErr> {
+        pub fn get_random_value(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
             // Get the on-chain random seed
             let new_random = self.env().extension().fetch_random(subject)?;
             self.value = new_random;
             // Emit the `RandomUpdated` event when the random seed
             // is successfully fetched.
-            Ok(())
+            Ok(new_random)
         }
     }
 
@@ -41,21 +42,21 @@ mod dictator {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
 
-        /// We test if the default constructor does its job.
-        #[ink::test]
-        fn default_works() {
-            let dictator = Dictator::default();
-            assert_eq!(dictator.get(), false);
-        }
+        // /// We test if the default constructor does its job.
+        // #[ink::test]
+        // fn default_works() {
+        //     let dictator = Dictator::default();
+        //     assert_eq!(dictator.get(), false);
+        // }
 
-        /// We test a simple use case of our contract.
-        #[ink::test]
-        fn it_works() {
-            let mut dictator = Dictator::new(false);
-            assert_eq!(dictator.get(), false);
-            dictator.flip();
-            assert_eq!(dictator.get(), true);
-        }
+        // /// We test a simple use case of our contract.
+        // #[ink::test]
+        // fn it_works() {
+        //     let mut dictator = Dictator::new(false);
+        //     assert_eq!(dictator.get(), false);
+        //     dictator.flip();
+        //     assert_eq!(dictator.get(), true);
+        // }
     }
 
 
@@ -130,47 +131,4 @@ mod dictator {
             Ok(())
         }
     }
-}
-
-#[ink::chain_extension]
-pub trait FetchRandom {
-    type ErrorCode = RandomReadErr;
-
-    #[ink(extension = 12)]
-    fn fetch_random(subject: [u8; 32]) -> [u8; 32];
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, scale::Encode, scale::Decode)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum RandomReadErr {
-    FailGetRandomSource,
-}
-
-impl ink::env::chain_extension::FromStatusCode for RandomReadErr {
-    fn from_status_code(status_code: u32) -> Result<(), Self> {
-        match status_code {
-            0 => Ok(()),
-            1 => Err(Self::FailGetRandomSource),
-            _ => panic!("encountered unknown status code"),
-        }
-    }
-}
-
-use ink_env::Environment;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
-pub enum CustomEnvironment {}
-
-impl Environment for CustomEnvironment {
-    const MAX_EVENT_TOPICS: usize =
-        <ink::env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
-
-    type AccountId = <ink::env::DefaultEnvironment as Environment>::AccountId;
-    type Balance = <ink::env::DefaultEnvironment as Environment>::Balance;
-    type Hash = <ink::env::DefaultEnvironment as Environment>::Hash;
-    type BlockNumber = <ink::env::DefaultEnvironment as Environment>::BlockNumber;
-    type Timestamp = <ink::env::DefaultEnvironment as Environment>::Timestamp;
-
-    type ChainExtension = FetchRandom;
 }
