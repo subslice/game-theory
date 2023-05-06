@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[ink::contract(env = CustomEnvironment)]
+#[openbrush::contract(env = CustomEnvironment)]
 mod dictator {
     use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
 
