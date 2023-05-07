@@ -1,12 +1,14 @@
 use super::types::GameError;
+use openbrush::traits::AccountId;
+use ink::primitives::Hash;
 
 #[openbrush::trait_definition]
 pub trait GameAdmin {
     #[ink(message)]
-    fn add_player_to_game(&mut self) -> Result<(), GameError>;
+    fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError>;
 
     #[ink(message)]
-    fn play_round_as_player(&mut self) -> Result<(), GameError>;
+    fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError>;
 
     #[ink(message)]
     fn reveal_round_as_player(&mut self) -> Result<(), GameError>;

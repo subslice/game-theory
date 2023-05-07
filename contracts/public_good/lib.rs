@@ -463,8 +463,95 @@ pub mod public_good {
     }
 
     /// An implementation of Admin-level functions for the `PublicGood` contract.
-    impl Admin for PublicGood {
+    impl GameAdmin for PublicGood {
+        #[ink(message)]
+        fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
+            // ensure that there's more room in the game
+            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            // add player to state
+            self.players.push(player);
+            // emit PlayerJoined event
+            Self::env().emit_event(PlayerJoined {
+                game_address: Self::env().account_id(),
+                player,
+            });
+            Ok(self.players.len() as u8)
+        }
 
+        // TODO: refactor this logic into something re-usable for both admin and player
+        #[ink(message)]
+        fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError> {
+            // ensure valid game state
+            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            // ensure current round exists
+            ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
+
+            let value = Self::env().transferred_value();
+            // NOTE: the issue here is since this game is publicgood, some amount has to be
+            // contributed to the pot. So, we need to check if the player has contributed
+            // that amount. But we also don't want to reveal the contribution :)
+            // one way is to have the payable amount always be fixed and be maxed out
+            // while the hashed commitment contains the real amount to be contributed.
+            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
+
+            let caller = as_player.clone();
+            let current_round = self.current_round.as_mut().unwrap();
+
+            // ensure that the player hasn't already made a commitment
+            ensure!(
+                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                GameError::PlayerAlreadyCommitted
+            );
+
+            // store the commit
+            current_round.player_commits.push((
+                caller.clone(),
+                commitment,
+            ));
+
+            // keep track of round contribution(s)
+            current_round.player_contributions.push((
+                caller.clone(),
+                value,
+            ));
+
+            current_round.total_contribution += value;
+
+            // check if all players have committed
+            if current_round.player_commits.len() == self.players.len() {
+                Self::env().emit_event(AllPlayersCommitted {
+                    game_address: Self::env().account_id(),
+                    round_id: current_round.id.clone(),
+                });
+            }
+
+            Self::env().emit_event(RoundCommitPlayed {
+                game_address: Self::env().account_id(),
+                player: Self::env().caller(),
+                commitment,
+            });
+            Ok(())
+        }
+
+        #[ink(message)]
+        fn reveal_round_as_player(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+        
+        #[ink(message)]
+        fn force_complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message)]
+        fn force_end_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn fund_contract(&self) -> Result<(), GameError> {
+            Ok(())
+        }
     }
 
     /// Unit tests.
