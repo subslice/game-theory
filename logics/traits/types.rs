@@ -1,8 +1,9 @@
+use ink::env::Environment;
+use ink::prelude::vec::Vec;
+use ink::storage::traits::StorageLayout;
 use openbrush::contracts::access_control::AccessControlError;
 use openbrush::traits::{AccountId, Hash};
 use scale::{Decode, Encode};
-use ink::prelude::vec::Vec;
-use ink::env::Environment;
 
 #[derive(Encode, Decode, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
@@ -50,7 +51,7 @@ pub enum GameError {
     /// Player already played n this round
     PlayerAlreadyCommitted,
     /// Player choice for the round is not valid
-    InvalidChoice
+    InvalidChoice,
 }
 
 impl From<AccessControlError> for GameError {
@@ -60,7 +61,7 @@ impl From<AccessControlError> for GameError {
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum GameStatus {
     Ready,
     OnGoing,
@@ -68,7 +69,7 @@ pub enum GameStatus {
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Copy, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub enum RoundStatus {
     Ready,
     OnGoing,
@@ -76,7 +77,7 @@ pub enum RoundStatus {
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameRound {
     pub id: u8,
     pub status: RoundStatus,
@@ -88,7 +89,7 @@ pub struct GameRound {
 }
 
 #[derive(Encode, Decode, PartialEq, Eq, Clone, Debug)]
-#[cfg_attr(feature = "std", derive(scale_info::TypeInfo))]
+#[cfg_attr(feature = "std", derive(scale_info::TypeInfo, StorageLayout))]
 pub struct GameConfigs {
     pub max_players: u8,
     pub min_players: u8,
@@ -133,8 +134,7 @@ pub trait FetchRandom {
 pub enum CustomEnvironment {}
 
 impl Environment for CustomEnvironment {
-    const MAX_EVENT_TOPICS: usize =
-        <ink::env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
+    const MAX_EVENT_TOPICS: usize = <ink::env::DefaultEnvironment as Environment>::MAX_EVENT_TOPICS;
 
     type AccountId = <ink::env::DefaultEnvironment as Environment>::AccountId;
     type Balance = <ink::env::DefaultEnvironment as Environment>::Balance;

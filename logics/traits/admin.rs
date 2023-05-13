@@ -10,7 +10,7 @@ pub trait GameAdmin {
 
     #[ink(message)]
     fn reveal_round_as_player(&mut self) -> Result<(), GameError>;
-    
+
     #[ink(message)]
     fn force_complete_round(&mut self) -> Result<(), GameError>;
 

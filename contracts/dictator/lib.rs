@@ -2,26 +2,142 @@
 
 #[openbrush::contract(env = CustomEnvironment)]
 mod dictator {
-    use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
+    use core::mem::uninitialized;
 
+    use game_theory::logics::traits::basic::*;
+    use game_theory::logics::traits::lifecycle::*;
+    use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
+    use game_theory::logics::traits::types::{
+        GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
+    };
+    use ink::codegen::EmitEvent;
+    use ink::env::hash::{Blake2x256, HashOutput};
+    use ink::prelude::vec::Vec;
+    use openbrush::contracts::access_control::extensions::enumerable::*;
+    use openbrush::contracts::access_control::only_role;
+    use openbrush::modifiers;
+    use openbrush::traits::{DefaultEnv, Storage};
+
+    /// Access control roles
+    const CREATOR: RoleType = ink::selector_id!("CREATOR");
+
+    #[ink(event)]
+    pub struct GameCreated {
+        #[ink(topic)]
+        game_id: AccountId,
+        #[ink(topic)]
+        creator: AccountId,
+        #[ink(topic)]
+        configs: GameConfigs,
+    }
+
+    #[ink(event)]
+    pub struct GameStarted {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        players: Vec<AccountId>,
+    }
+
+    #[ink(event)]
+    pub struct GameEnded {
+        #[ink(topic)]
+        game_address: AccountId,
+        rounds_played: u8,
+    }
+
+    #[ink(event)]
+    pub struct PlayerJoined {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+    }
+
+    #[ink(event)]
+    pub struct PlayerCommitted {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+        commitment: Hash,
+    }
+
+    #[ink(event)]
+    pub struct AllPlayersCommitted {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        commits: Vec<(AccountId, Hash)>,
+    }
+
+    #[ink(event)]
+    pub struct PlayerRevealed {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+        reveal: (u128, u128),
+    }
+
+    #[ink(event)]
+    pub struct RoundEnded {
+        #[ink(topic)]
+        game_address: AccountId,
+        winners: Vec<(AccountId, u128)>,
+        round_id: u8,
+        total_contribution: u128,
+    }
     /// Storage of the Dictator Game
     #[ink(storage)]
+    #[derive(Storage)]
     pub struct Dictator {
-        /// Stores a single random value
-        value: [u8; 32],
+        #[storage_field]
+        access: access_control::Data<enumerable::Members>,
+        /// Stores the list of players for this game instance
+        players: Vec<AccountId>,
+        /// The status of the current game
+        status: GameStatus,
+        /// A list of all the rounds that have been played
+        rounds: Vec<GameRound>,
+        /// The current round of the game
+        current_round: Option<GameRound>,
+        /// The id of the next round
+        next_round_id: u8,
+        /// Account that created the instance of this game
+        creator: AccountId,
+        /// The configurations of the game
+        configs: GameConfigs,
     }
 
     impl Dictator {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: [u8; 32]) -> Self {
-            Self { value: init_value }
+        pub fn new(configs: GameConfigs) -> Self {
+            let mut instance = Self {
+                access: Default::default(),
+                creator: <Self as DefaultEnv>::env().caller(),
+                players: Vec::new(),
+                status: GameStatus::Ready,
+                rounds: Vec::new(),
+                current_round: None,
+                next_round_id: 1,
+                configs,
+            };
+            let caller = <Self as DefaultEnv>::env().caller();
+
+            instance._init_with_admin(caller);
+            instance
+                .grant_role(CREATOR, caller)
+                .expect("Should grant CREATOR role");
+
+            instance
         }
 
         /// Default constructor
         #[ink(constructor)]
         pub fn default() -> Self {
-            Self::new(Default::default())
+            unimplemented!();
         }
 
         /// Seed a random value by passing some known argument `subject` to the runtime's
@@ -31,18 +147,14 @@ mod dictator {
         pub fn update(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
             // Get the on-chain random seed
             let new_random = self.env().extension().fetch_random(subject)?;
-            self.value = new_random;
             // Emit the `RandomUpdated` event when the random seed
             // is successfully fetched.
             Ok(new_random)
         }
-
-        /// Return the last stored random value
-        #[ink(message)]
-        pub fn get(&mut self) -> [u8; 32] {
-            self.value
-        }
     }
+
+    // impl Lifecycle for Dictator {
+    // }
 
     #[cfg(test)]
     mod tests {
@@ -55,9 +167,7 @@ mod dictator {
             let mut dictator = Dictator::default();
             assert_eq!(dictator.get(), [0u8; 32]);
         }
-
     }
-
 
     /// This is how you'd write end-to-end (E2E) or integration tests for ink! contracts.
     ///

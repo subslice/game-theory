@@ -1,5 +1,5 @@
-use openbrush::traits::Hash;
 use super::types::*;
+use openbrush::traits::Hash;
 
 /// Defines the basic game lifecycle methods.
 #[openbrush::trait_definition]
@@ -44,4 +44,3 @@ pub trait Lifecycle {
     #[ink(message, payable)]
     fn end_game(&mut self) -> Result<(), GameError>;
 }
-
