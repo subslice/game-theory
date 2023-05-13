@@ -4,12 +4,10 @@
 mod dictator {
     use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
 
-    /// Defines the storage of your contract.
-    /// Add new fields to the below struct in order
-    /// to add new static storage fields to your contract.
+    /// Storage of the Dictator Game
     #[ink(storage)]
     pub struct Dictator {
-        /// Stores a single `bool` value on the storage.
+        /// Stores a single random value
         value: [u8; 32],
     }
 
@@ -20,11 +18,17 @@ mod dictator {
             Self { value: init_value }
         }
 
+        /// Default constructor
+        #[ink(constructor)]
+        pub fn default() -> Self {
+            Self::new(Default::default())
+        }
+
         /// Seed a random value by passing some known argument `subject` to the runtime's
         /// random source. Then, update the current `value` stored in this contract with the
         /// new random value.
         #[ink(message)]
-        pub fn get_random_value(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
+        pub fn update(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
             // Get the on-chain random seed
             let new_random = self.env().extension().fetch_random(subject)?;
             self.value = new_random;
@@ -32,31 +36,26 @@ mod dictator {
             // is successfully fetched.
             Ok(new_random)
         }
+
+        /// Return the last stored random value
+        #[ink(message)]
+        pub fn get(&mut self) -> [u8; 32] {
+            self.value
+        }
     }
 
-    /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
-    /// module and test functions are marked with a `#[test]` attribute.
-    /// The below code is technically just normal Rust code.
     #[cfg(test)]
     mod tests {
         /// Imports all the definitions from the outer scope so we can use them here.
         use super::*;
 
-        // /// We test if the default constructor does its job.
-        // #[ink::test]
-        // fn default_works() {
-        //     let dictator = Dictator::default();
-        //     assert_eq!(dictator.get(), false);
-        // }
+        /// We test if the default constructor does its job.
+        #[ink::test]
+        fn default_works() {
+            let mut dictator = Dictator::default();
+            assert_eq!(dictator.get(), [0u8; 32]);
+        }
 
-        // /// We test a simple use case of our contract.
-        // #[ink::test]
-        // fn it_works() {
-        //     let mut dictator = Dictator::new(false);
-        //     assert_eq!(dictator.get(), false);
-        //     dictator.flip();
-        //     assert_eq!(dictator.get(), true);
-        // }
     }
 
 
