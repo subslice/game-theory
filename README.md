@@ -1,4 +1,4 @@
-# Game Theory Games with !ink
+# Game Theory with ink!
 
 > Submission for the Encode x Polkadot Hackathon 2023
 
@@ -11,14 +11,14 @@
 The project contains a few components that together compose the overall experience.
 
 1. Traits: the `traits` crate defines the behaviours which every game must provide and common types.
-    * The `trait-defintion` of `GameLifecycle` specifies the methods which must be implemented by each game.
+    * The `trait-defintion` of `Lifecycle` specifies the methods which must be implemented by each game.
     * Common types include `Error`, `GameStatus`, `RoundStatus`, `GameRound` and `GameConfigs`.
 
-2. Router: the `games_router` create defines a generic contract which the UI will invoke when launching new games as well as when having high-level interactions with the games' contracts.
+2. Router: the `router` create defines a generic contract which the UI will invoke when launching new games as well as when having high-level interactions with the games' contracts.
     * It does not contain game specific code.
     * It is extensible to allow future games to be added.
 
-3. Games: the games themselves are example contract implementations (`game_rock_paper_scissors` and `game_public_good`) of the `GameLifecycle` trait.
+3. Games: the games themselves are example contract implementations (`rock_paper_scissors` and `public_good`) of the `Lifecycle` trait.
     * Each __instance__ of a game contract represents a single game play.
     * To play the game again, a new __instance__ must be launched.
     * The contract should self-destruct once the game is completed and final round's winnings are issued.
@@ -26,7 +26,7 @@ The project contains a few components that together compose the overall experien
 
 ### General Notes
 
-Because the Router is agnostic to the exact games, other games which follow the `GameLifecycle` trait can be implemented, launched on-chain and added to the Router to be used publicly.
+Because the Router is agnostic to the exact games, other games which follow the `Lifecycle` trait can be implemented, launched on-chain and added to the Router to be used publicly.
 
 There is also no absolute need for the router other than making the instantiation of games easier as well as some future generic behaviour which simplifies contract interaction.
 
