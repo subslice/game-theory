@@ -2,6 +2,7 @@
 
 pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 
+// noinspection ALL
 #[openbrush::contract]
 pub mod rock_paper_scissors {
     use game_theory::logics::traits::basic::*;
