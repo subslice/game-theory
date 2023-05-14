@@ -7,11 +7,17 @@ This repo contains an implementation of some [games within the Game Theory field
 One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
 explaining the game's logic.
 
-Only a couple of games are currently implemented, deployable and playable from the list linked above, however, the implementation
+---
+
+## Explanation & Demo Video
+
+<<< --------- TODO: add video --------- >>>
+
+> Only a couple of games are currently implemented, deployable (tested on Shibuya) and playable from the list linked above, however, the implementation
 is done such that it follows a standardized set of traits (see `./logics/traits` directory) defined within the reusable (across contracts) code
 such as type and trait definitions. More details in the [Project Components section](#architecture--components).
-
-Taking such an approach means more games can be easily added to extend this project beyond the current hackathon submission.
+> 
+> Taking such an approach means more games can be easily added to extend this project beyond the current hackathon submission.
 
 ---
 
