@@ -3,6 +3,7 @@
 
 pub use self::public_good::{PublicGood, PublicGoodRef};
 
+// noinspection ALL
 #[openbrush::contract]
 pub mod public_good {
     use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
@@ -11,8 +12,7 @@ pub mod public_good {
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
     use openbrush::{modifiers, traits::{DefaultEnv, Storage}};
-    use openbrush::contracts::access_control::extensions::enumerable::*;
-    use openbrush::contracts::access_control::only_role;
+    use openbrush::contracts::access_control::{extensions::enumerable::*, only_role};
     use ink::codegen::EmitEvent;
     use ink::codegen::Env;
 
@@ -102,7 +102,7 @@ pub mod public_good {
     pub struct PublicGood {
         /// openbrush access control storage
         #[storage_field]
-        access: access_control::Data<enumerable::Members>,
+        access: access_control::Data<Members>,
         created_by: AccountId,
         /// Stores the list of players for this game instance
         players: Vec<AccountId>,
@@ -163,7 +163,7 @@ pub mod public_good {
             })
         }
 
-        /// Internal methods
+        /// Helper methods
         #[modifiers(only_role(CREATOR))]
         pub fn emit_game_created(&mut self) -> Result<(), GameError> {
             let game_address = self.env().account_id();
@@ -464,12 +464,18 @@ pub mod public_good {
 
     /// An implementation of Admin-level functions for the `PublicGood` contract.
     impl GameAdmin for PublicGood {
-        #[ink(message)]
+        #[ink(message, payable)]
+        #[modifiers(only_role(CREATOR))]
         fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
             // ensure that there's more room in the game
             ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
             // add player to state
             self.players.push(player);
+            // any paid amount should be transferred to that particular player from the contract
+            let value = Self::env().transferred_value();
+            if value > 0 {
+                Self::env().transfer(player, Self::env().transferred_value());
+            }
             // emit PlayerJoined event
             Self::env().emit_event(PlayerJoined {
                 game_address: Self::env().account_id(),
@@ -478,20 +484,18 @@ pub mod public_good {
             Ok(self.players.len() as u8)
         }
 
-        // TODO: refactor this logic into something re-usable for both admin and player
         #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
         fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError> {
+            // TODO: refactor this logic into something re-usable for both admin and player
+
             // ensure valid game state
             ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
             // ensure current round exists
             ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
 
             let value = Self::env().transferred_value();
-            // NOTE: the issue here is since this game is publicgood, some amount has to be
-            // contributed to the pot. So, we need to check if the player has contributed
-            // that amount. But we also don't want to reveal the contribution :)
-            // one way is to have the payable amount always be fixed and be maxed out
-            // while the hashed commitment contains the real amount to be contributed.
+            // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation
             ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
 
             let caller = as_player.clone();
@@ -505,13 +509,13 @@ pub mod public_good {
 
             // store the commit
             current_round.player_commits.push((
-                caller.clone(),
+                as_player.clone(),
                 commitment,
             ));
 
             // keep track of round contribution(s)
             current_round.player_contributions.push((
-                caller.clone(),
+                as_player.clone(),
                 value,
             ));
 
@@ -527,23 +531,26 @@ pub mod public_good {
 
             Self::env().emit_event(RoundCommitPlayed {
                 game_address: Self::env().account_id(),
-                player: Self::env().caller(),
+                player: caller,
                 commitment,
             });
             Ok(())
         }
 
         #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
         fn reveal_round_as_player(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
         
         #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
         fn force_complete_round(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
 
         #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
         fn force_end_game(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
@@ -559,6 +566,7 @@ pub mod public_good {
     mod tests {
         use super::*;
         use ink::env::test::EmittedEvent;
+        use openbrush::traits::Balance;
 
         type Event = <PublicGood as ::ink::reflect::ContractEventBase>::Type;
 
