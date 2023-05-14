@@ -3,20 +3,20 @@
 #[openbrush::contract(env = CustomEnvironment)]
 mod dictator {
     use game_theory::logics::traits::basic::*;
-    use game_theory::logics::traits::lifecycle::*;
+    use game_theory::logics::traits::{ basic::*, lifecycle::*, utils::*, admin::* };
     use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
+    use openbrush::{modifiers, traits::{DefaultEnv, Storage}};
     use game_theory::logics::traits::types::{
         GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
     };
     use ink::codegen::{Env};
+    use game_theory::ensure;
     use ink::env::hash::{Blake2x256, HashOutput};
     use ink::prelude::vec::Vec;
     
-    use openbrush::contracts::access_control::extensions::enumerable::*;
+    use ink_env::debug_println;
+    use openbrush::contracts::access_control::{extensions::enumerable::*, only_role};
     
-    
-    use openbrush::traits::{DefaultEnv, Storage};
-
     /// Access control roles
     const CREATOR: RoleType = ink::selector_id!("CREATOR");
 
@@ -43,6 +43,16 @@ mod dictator {
         #[ink(topic)]
         game_address: AccountId,
         rounds_played: u8,
+    }
+
+    #[ink(event)]
+    #[derive(Debug)]
+    pub struct RoundCommitPlayed {
+        #[ink(topic)]
+        game_address: AccountId,
+        #[ink(topic)]
+        player: AccountId,
+        commitment: Hash,
     }
 
     #[ink(event)]
@@ -97,6 +107,13 @@ mod dictator {
         endowment: u128,
     }
 
+    #[ink(event)]
+    pub struct DictatorChosen {
+        #[ink(topic)]
+        dictator: AccountId,
+        endowment: Balance,
+    }
+
     /// Storage of the Dictator Game
     #[ink(storage)]
     #[derive(Storage)]
@@ -119,6 +136,8 @@ mod dictator {
         configs: GameConfigs,
         /// current random seed
         seed: [u8; 32],
+        /// current round dictator
+        dictator: Option<AccountId>,
     }
 
     impl Dictator {
@@ -133,15 +152,16 @@ mod dictator {
                 current_round: None,
                 next_round_id: 1,
                 configs: configs.clone(),
-                seed: [0u8; 32]
+                seed: [0u8; 32],
+                dictator: None,
             };
             let caller = <Self as DefaultEnv>::env().caller();
 
-            if let Some(max_rounds) = configs.max_rounds {
-                if max_rounds > 1 {
-                    panic!("Dictator is not rounds based")
-                }
-            }
+            // if let Some(max_rounds) = configs.max_rounds {
+            //     if max_rounds > 1 {
+            //         panic!("Dictator is not rounds based")
+            //     }
+            // }
 
             instance._init_with_admin(caller);
             instance
@@ -189,6 +209,22 @@ mod dictator {
 
             Ok(seed)
         }
+
+        #[ink(message)]
+        pub fn update(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
+            // Get the on-chain random seed
+            let new_random = self.env().extension().fetch_random(subject)?;
+            // self.value = new_random;
+            // Emit the `RandomUpdated` event when the random seed
+            // is successfully fetched.
+            Ok(new_random)
+        }
+
+        // /// Return the last stored random value
+        // #[ink(message)]
+        // pub fn get(&mut self) -> [u8; 32] {
+        //     self.value
+        // }
     }
 
     impl Basic for Dictator {
@@ -268,7 +304,18 @@ mod dictator {
             self.next_round_id += 1;
 
             let new_random = self.env().extension().fetch_random(self.seed).unwrap();
-            // let r = u8::from_le_bytes(new_random);
+            let rand_int = u32::from_ne_bytes(new_random[0..4].try_into().unwrap());
+            debug_println!("{:?}", new_random);
+            debug_println!("{}", rand_int);
+            let r = rand_int as usize % self.players.len();
+            debug_println!("{}", r);
+            let dictator = self.players.get(r).unwrap();
+            self.dictator = Some(*dictator);
+
+            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), DictatorChosen {
+                dictator: *dictator,
+                endowment: self.env().balance(),
+            });
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameStarted {
                 game_address: Self::env().account_id(),
@@ -314,8 +361,8 @@ mod dictator {
 
             let value = Self::env().transferred_value();
 
-            // current_round.player_contributions.push((caller, value));
-            // current_round.player_commits.push((caller, commitment));
+            current_round.player_contributions.push((caller, value));
+            current_round.player_commits.push((caller, commitment));
             // current_round.total_contribution += value;
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerCommitted {
@@ -340,7 +387,35 @@ mod dictator {
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
-            unimplemented!()
+            let caller = Self::env().caller();
+            let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
+            let mut output = <Blake2x256 as HashOutput>::Type::default(); // 256 bit buffer
+            ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
+            let current_round = self.current_round.as_mut().unwrap();
+
+            let player_commitment = current_round
+                .player_commits
+                .iter()
+                .find(|(c, _)| c == &caller);
+
+            if let Some(c) = player_commitment {
+                if c.1 != output.into() {
+                    return Err(GameError::InvalidReveal);
+                }
+            } else {
+                return Err(GameError::CommitmentNotFound);
+            }
+
+            current_round.player_reveals.push((caller, reveal));
+
+            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerRevealed {
+                game_address: Self::env().account_id(),
+                player: caller,
+                reveal,
+            });
+
+            Ok(())
+
         }
 
         #[ink(message, payable)]
@@ -400,6 +475,111 @@ mod dictator {
             });
 
             Self::env().terminate_contract(self.creator);
+        }
+    }
+
+    impl GameAdmin for Dictator {
+        #[ink(message, payable)]
+        #[modifiers(only_role(CREATOR))]
+        fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
+            // ensure that there's more room in the game
+            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            // add player to state
+            self.players.push(player);
+            // any paid amount should be transferred to that particular player from the contract
+            let value = Self::env().transferred_value();
+            if value > 0 {
+                Self::env().transfer(player, Self::env().transferred_value())
+                    .map_err(|_| GameError::FailedToAddPlayer)?;
+            }
+            // emit PlayerJoined event
+            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerJoined {
+                game_address: Self::env().account_id(),
+                player,
+            });
+            Ok(self.players.len() as u8)
+        }
+
+        #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
+        fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError> {
+            // TODO: refactor this logic into something re-usable for both admin and player
+
+            // ensure valid game state
+            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            // ensure current round exists
+            ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
+
+            let value = Self::env().transferred_value();
+            // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation.
+            // It's the reason we require the max_round_contribution amount here
+            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
+
+            let caller = as_player.clone();
+            let mut current_round = self.current_round.clone().unwrap();
+
+            // ensure that the player hasn't already made a commitment
+            ensure!(
+                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                GameError::PlayerAlreadyCommitted
+            );
+
+            // store the commit
+            current_round.player_commits.push((
+                as_player.clone(),
+                commitment,
+            ));
+
+            // keep track of round contribution(s)
+            current_round.player_contributions.push((
+                as_player.clone(),
+                value,
+            ));
+
+            current_round.total_contribution += value;
+
+            // check if all players have committed
+            if current_round.player_commits.len() == self.players.len() {
+                ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), AllPlayersCommitted {
+                    game_address: Self::env().account_id(),
+                    commits: current_round.player_commits.clone(),
+                });
+            }
+
+            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), RoundCommitPlayed {
+                game_address: Self::env().account_id(),
+                player: caller,
+                commitment,
+            });
+
+            self.current_round = Some(current_round);
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
+        fn reveal_round_as_player(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
+        fn force_complete_round(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message)]
+        #[modifiers(only_role(CREATOR))]
+        fn force_end_game(&mut self) -> Result<(), GameError> {
+            todo!("implement")
+        }
+
+        #[ink(message, payable)]
+        fn fund_contract(&self) -> Result<(), GameError> {
+            // ensure!(self.env().transferred_value() > 0);
+
+            Ok(())
         }
     }
 
