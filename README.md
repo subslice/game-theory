@@ -2,7 +2,10 @@
 
 > Submission for the Encode x Polkadot Hackathon 2023
 
-This repo contains an implementation of [games within the Game Theory field](https://en.wikipedia.org/wiki/List_of_games_in_game_theory).
+This repo contains an implementation of some [games within the Game Theory field](https://en.wikipedia.org/wiki/List_of_games_in_game_theory). 
+
+One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
+explaining the game's logic.
 
 Only a couple of games are currently implemented, deployable and playable from the list linked above, however, the implementation
 is done such that it follows a standardized set of traits (see `./logics/traits` directory) defined within the reusable (across contracts) code
@@ -61,6 +64,11 @@ new games as well as when having high-level interactions with the games' contrac
    b. Add Admin / Analytics dashboard
    c. Add ability to connect using a wallet (see [use-inkathon](https://github.com/scio-labs/use-inkathon))
 
+
+### Game Lifecycle
+
+[//]: # (TODO: write)
+
 ---
 
 ## Getting Started
@@ -110,4 +118,11 @@ cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Ca
 - [ ] ...
 - [ ] ...
 - [ ] ...
+
+---
+
+## Contributors
+
+- [Faisal A.](#)
+- [Arthur F.M.](#)
 
