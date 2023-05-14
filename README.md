@@ -1,5 +1,7 @@
 # Game Theory with ink!
 
+An ink! tool for playing and researching games based on the field of "Game Theory" by using smart contracts.
+
 > Submission for the Encode x Polkadot Hackathon 2023
 
 This repo contains an implementation of some [games within the Game Theory field](https://en.wikipedia.org/wiki/List_of_games_in_game_theory). 
