@@ -36,32 +36,26 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ## Overview
 
-### High-level Architecture
-
-![](./images/architecture-2.png)
-
 ### Logic Organization
 
 ![](./images/architecture.png)
 
-### Game Lifecycle Flow
+### Architecture & Components
 
-![](./images/game-lifecycle-flow.png)
-
-### Project Components
+![](./images/architecture-2.png)
 
 1. **Traits**: the `traits` crate defines the behaviours which every game must provide as well as common types.
-    * There 3 `trait-defintion`s which specify the methods needed by each game. `Lifecycle` (game play methods),
-      `Basic` (simple getters/setters) and `Admin` (admin-level methods). See [traits](./logics/traits) module.
-    * Common types include `GameError`, `GameConfigs` and other relevant data types. See [types](./logics/traits/types.rs) module.
+   * There 3 `trait-defintion`s which specify the methods needed by each game. `Lifecycle` (game play methods),
+     `Basic` (simple getters/setters) and `Admin` (admin-level methods). See [traits](./logics/traits) module.
+   * Common types include `GameError`, `GameConfigs` and other relevant data types. See [types](./logics/traits/types.rs) module.
 
 2. **Games**: the games are !ink smart contracts which implement a subset or all the traits mentioned above.
-    * Each __instance__ of a game contract represents a single game play.
-    * To play the game again, a new __instance__ must be launched.
-    * The contract should terminate once the game is completed and the final round's winnings are issued.
+   * Each __instance__ of a game contract represents a single game play.
+   * To play the game again, a new __instance__ must be launched.
+   * The contract should terminate once the game is completed and the final round's winnings are issued.
 
-3. [post hackathon] **Router**: the `games_router` create defines a generic contract which the UI will invoke when launching 
-new games as well as when having high-level interactions with the games' contracts.
+3. [post hackathon] **Router**: the `games_router` create defines a generic contract which the UI will invoke when launching
+   new games as well as when having high-level interactions with the games' contracts.
    * It does not contain game specific code.
    * It is extensible to allow future games to be added.
 
@@ -70,10 +64,9 @@ new games as well as when having high-level interactions with the games' contrac
    b. Add Admin / Analytics dashboard
    c. Add ability to connect using a wallet (see [use-inkathon](https://github.com/scio-labs/use-inkathon))
 
+### Game Lifecycle Flow
 
-### Game Lifecycle
-
-[//]: # (TODO: write)
+![](./images/game-lifecycle-flow.png)
 
 ---
 
