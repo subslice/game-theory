@@ -51,7 +51,7 @@ Simply run `cargo test` to run tests of all the crates / packages.
 To run a specific contract's tests, use the `-p` flag, for example:
 
 ```shell
-cargo test -p game_public_good
+cargo +nightly test -p public_good
 ```
 
 or `cd` into that contract's directory and run `cargo test` within.

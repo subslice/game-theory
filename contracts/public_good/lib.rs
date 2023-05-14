@@ -1,12 +1,25 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![feature(min_specialization)]
 
-pub use self::game_public_good::{GamePublicGood, GamePublicGoodRef};
+pub use self::public_good::{PublicGood, PublicGoodRef};
 
-#[ink::contract]
-pub mod game_public_good {
-    use traits::{ GameLifecycle, GameRound, GameStatus, GameConfigs, GameError, RoundStatus, GameUtils };
+#[openbrush::contract]
+pub mod public_good {
+    use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
+    use game_theory::logics::traits::lifecycle::*;
+    use game_theory::logics::traits::basic::*;
+    use game_theory::logics::traits::utils::*;
+    use game_theory::ensure;
     use ink::prelude::vec::Vec;
     use ink::env::hash::{Blake2x256, HashOutput};
+    use openbrush::{modifiers, traits::{DefaultEnv, Storage}};
+    use openbrush::contracts::access_control::extensions::enumerable::*;
+    use openbrush::contracts::access_control::only_role;
+    use ink::codegen::EmitEvent;
+    use ink::codegen::Env;
+
+    /// Access control roles
+    const CREATOR: RoleType = ink::selector_id!("CREATOR");
 
     /// Events
     #[ink(event)]
@@ -16,7 +29,7 @@ pub mod game_public_good {
         #[ink(topic)]
         game_hash: Hash,
     }
-    
+
     #[ink(event)]
     pub struct GameStarted {
         #[ink(topic)]
@@ -87,7 +100,11 @@ pub mod game_public_good {
     /// A single game storage.
     /// Each contract (along with its storage) represents a single game instance.
     #[ink(storage)]
-    pub struct GamePublicGood {
+    #[derive(Storage)]
+    pub struct PublicGood {
+        /// openbrush access control storage
+        #[storage_field]
+        access: access_control::Data<enumerable::Members>,
         created_by: AccountId,
         /// Stores the list of players for this game instance
         players: Vec<AccountId>,
@@ -98,11 +115,11 @@ pub mod game_public_good {
         /// The id of the next round
         next_round_id: u8,
         /// The configurations of the game
-        configs: GameConfigs,
+        configs: GameConfigs
     }
 
-    impl GamePublicGood {
-        /// Constructor that initializes the GamePublicGood struct
+    impl PublicGood {
+        /// Constructor that initializes the PublicGood struct
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
             // basic sanity checks related to round contributions for this game
@@ -113,16 +130,22 @@ pub mod game_public_good {
             } else if configs.max_round_contribution.unwrap() < configs.min_round_contribution.unwrap() {
                 panic!("The max_round_contribution must be greater than the min_round_contribution");
             }
-            
-            Self {
-                created_by: Self::env().caller(),
+
+            let mut instance = Self {
+                access: Default::default(),
+                created_by: <Self as DefaultEnv>::env().caller(),
                 players: Vec::new(),
                 status: GameStatus::Ready,
-                rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
                 configs,
-            }
+            };
+
+            let caller = <Self as DefaultEnv>::env().caller();
+            instance._init_with_admin(caller);
+            instance.grant_role(CREATOR, caller).expect("Should grant CREATOR role");
+
+            instance
         }
 
         /// A default constructor that initializes this game with 10 players.
@@ -142,9 +165,11 @@ pub mod game_public_good {
             })
         }
 
-        pub fn emit_game_created(&self) -> Result<(), GameError> {
+        /// Internal methods
+        #[modifiers(only_role(CREATOR))]
+        pub fn emit_game_created(&mut self) -> Result<(), GameError> {
             let game_address = self.env().account_id();
-            let game_hash = self.env().code_hash(&game_address).unwrap();
+            let game_hash = <Self as DefaultEnv>::env().code_hash(&game_address).unwrap();
 
             self.env().emit_event(GameCreated {
                 game_address,
@@ -154,7 +179,8 @@ pub mod game_public_good {
             Ok(())
         }
 
-        pub fn emit_game_started(&self) -> Result<(), GameError> {
+        #[modifiers(only_role(CREATOR))]
+        pub fn emit_game_started(&mut self) -> Result<(), GameError> {
             self.env().emit_event(GameStarted {
                 game_address: self.env().account_id()
             });
@@ -162,6 +188,7 @@ pub mod game_public_good {
             Ok(())
         }
 
+        // TODO: remove
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
@@ -171,8 +198,12 @@ pub mod game_public_good {
         }
     }
 
-    /// An implementation of the `GameLifecycle` trait for the `GamePublicGood` contract.
-    impl GameLifecycle for GamePublicGood {
+    /// Add default implementation for access control to the game
+    impl AccessControl for PublicGood {}
+    impl AccessControlEnumerable for PublicGood {}
+
+    /// An implementation of the basic ink! storage getters / setters
+    impl Basic for PublicGood {
         #[ink(message)]
         fn get_configs(&self) -> GameConfigs {
             self.configs.clone()
@@ -195,40 +226,35 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn join(&mut self, player: AccountId) -> Result<u8, GameError> {
-            if self.env().caller() != player {
-                return Err(GameError::CallerMustMatchNewPlayer)
-            }
-            
-            if self.players.len() >= self.configs.max_players as usize {
-                return Err(GameError::MaxPlayersReached)
-            }
-
+            // ensure that joining is only done by caller
+            ensure!(Self::env().caller() == player, GameError::CallerMustMatchNewPlayer);
+            // ensure that there's more room in the game
+            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            // ensure applicable fees are paid
             if let Some(fees) = self.configs.join_fee {
-                if self.env().transferred_value() < Balance::from(fees) {
-                    return Err(GameError::InsufficientJoiningFees);
-                }
+                ensure!(Self::env().transferred_value() >= Balance::from(fees), GameError::InsufficientJoiningFees);
             }
-
+            // add player to state
             self.players.push(player);
-            self.env().emit_event(PlayerJoined {
-                game_address: self.env().account_id(),
+            // emit PlayerJoined event
+            Self::env().emit_event(PlayerJoined {
+                game_address: Self::env().account_id(),
                 player,
             });
             Ok(self.players.len() as u8)
         }
+    }
 
+    /// An implementation of the `GameLifecycle` trait for the `PublicGood` contract.
+    impl Lifecycle for PublicGood {
         #[ink(message, payable)]
         fn start_game(&mut self) -> Result<(), GameError> {
-            match (self.players.len(), self.status) {
-                (_, status) if status != GameStatus::Initialized => {
-                    return Err(GameError::InvalidGameState)
-                }
-                (players, _) if players < self.configs.min_players as usize => {
-                    return Err(GameError::NotEnoughPlayers)
-                }
-                _ => (),
-            }
+            // ensure game status is valid for state change
+            ensure!(self.status == GameStatus::Ready, GameError::InvalidGameState);
+            // ensure enough players
+            ensure!(self.players.len() >= self.configs.min_players as usize, GameError::NotEnoughPlayers);
 
+            // setup the current round
             self.current_round = Some(GameRound {
                 id: self.next_round_id,
                 status: RoundStatus::Ready,
@@ -239,39 +265,38 @@ pub mod game_public_good {
                 total_reward: 0,
             });
             self.next_round_id += 1;
-            self.status = GameStatus::Started;
-            
-            // emit event
-            self.env().emit_event(GameStarted {
-                game_address: self.env().account_id(),
+            // update game state
+            self.status = GameStatus::OnGoing;
+            // emit GameStarted event
+            Self::env().emit_event(GameStarted {
+                game_address: Self::env().account_id(),
             });
-
             Ok(())
         }
 
         #[ink(message, payable)]
         fn play_round(&mut self, commitment: Hash) -> Result<(), GameError> {
-            match (self.status, self.current_round.is_none(), self.env().transferred_value()) {
-                (status, _, _) if status != GameStatus::Started => {
-                    return Err(GameError::GameNotStarted)
-                },
-                (_, true, _) => {
-                    return Err(GameError::NoCurrentRound)
-                },
-                (_, _, value) if value < Balance::from(self.configs.max_round_contribution.unwrap_or(0)) => {
-                    // NOTE: the issue here is since this game is publicgood, some amount has to be
-                    // contributed to the pot. So, we need to check if the player has contributed
-                    // that amount. But we also don't want to reveal the contribution :)
-                    // one way is to have the payable amount always be fixed and be maxed out
-                    // while the hashed commitment contains the real amount to be contributed.
-                    return Err(GameError::InvalidRoundContribution)
-                },
-                _ => ()
-            }
+            // ensure valid game state
+            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            // ensure current round exists
+            ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
 
-            let caller = self.env().caller();
-            let value = self.env().transferred_value();
+            let value = Self::env().transferred_value();
+            // NOTE: the issue here is since this game is publicgood, some amount has to be
+            // contributed to the pot. So, we need to check if the player has contributed
+            // that amount. But we also don't want to reveal the contribution :)
+            // one way is to have the payable amount always be fixed and be maxed out
+            // while the hashed commitment contains the real amount to be contributed.
+            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
+
+            let caller = Self::env().caller();
             let current_round = self.current_round.as_mut().unwrap();
+
+            // ensure that the player hasn't already made a commitment
+            ensure!(
+                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                GameError::PlayerAlreadyCommitted
+            );
 
             // store the commit
             current_round.player_commits.push((
@@ -295,9 +320,9 @@ pub mod game_public_good {
                 });
             }
 
-            self.env().emit_event(RoundCommitPlayed {
-                game_address: self.env().account_id(),
-                player: self.env().caller(),
+            Self::env().emit_event(RoundCommitPlayed {
+                game_address: Self::env().account_id(),
+                player: Self::env().caller(),
                 commitment,
             });
             Ok(())
@@ -305,7 +330,7 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
-            let caller = self.env().caller();
+            let caller = Self::env().caller();
             let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default();
             ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
@@ -317,20 +342,15 @@ pub mod game_public_good {
                 .iter()
                 .find(|(player, _)| player == &caller);
 
-            // check if the reveal is valid
-            match player_commitment {
-                Some((_, commitment)) => {
-                    if commitment != &output.into() {
-                        return Err(GameError::InvalidReveal)
-                    }
-                }
-                None => return Err(GameError::CommitmentNotFound),
-            }
+            // ensure that the commitment exists
+            ensure!(player_commitment.is_some(), GameError::CommitmentNotFound);
+            // ensure that the reveal is valid
+            ensure!(player_commitment.unwrap().1 == output.into(), GameError::InvalidReveal);
 
             // return the partial contribution to the player
             // this is done because all players contribute the max amount when making a commitment
             // to avoid information leakage
-            self.env()
+            Self::env()
                 .transfer(caller, self.configs.max_round_contribution.unwrap() - reveal.0)
                 .map_err(|_| GameError::PartialContributionRefundFailed)?;
 
@@ -341,8 +361,8 @@ pub mod game_public_good {
             ));
             // emit event
             self.env().emit_event(RoundCommitRevealed {
-                game_address: self.env().account_id(),
-                player: self.env().caller(),
+                game_address: Self::env().account_id(),
+                player: Self::env().caller(),
                 reveal: Some(reveal),
             });
 
@@ -353,22 +373,15 @@ pub mod game_public_good {
         fn complete_round(&mut self) -> Result<(), GameError> {
             let current_round = self.current_round.as_mut().unwrap();
 
-            match current_round {
-                // check if all players have revealed
-                round if round.player_reveals.len() != self.players.len() => {
-                    return Err(GameError::NotAllPlayersRevealed)
-                },
-                // check if the round has already ended
-                round if round.status == RoundStatus::Ended => {
-                    return Err(GameError::InvalidGameState)
-                },
-                _ => ()
-            }
-            
-            current_round.status = RoundStatus::Ended;
+            // ensure all players have revealed
+            ensure!(current_round.player_reveals.len() == self.players.len(), GameError::NotAllPlayersRevealed);
+            // ensure round state is still valid
+            ensure!(current_round.status != RoundStatus::Ended, GameError::InvalidGameState);
 
+            // mark round as ended
+            current_round.status = RoundStatus::Ended;
             // get winners
-            let winners = GamePublicGood::get_winners(
+            let winners = PublicGood::get_winners(
                     &current_round,
                     &self.configs,
                     &self.players
@@ -379,26 +392,26 @@ pub mod game_public_good {
             winners.iter().for_each(|(player, reward)| {
                 match reward {
                     Some(reward) => {
-                        let _ = self.env().transfer(*player, *reward)
+                        let _ = Self::env().transfer(*player, *reward)
                             .map_err(|_| GameError::FailedToIssueWinnerRewards);
                     },
                     None => ()
                 }
             });
-            
+
             self.env().emit_event(RoundCompleted {
-                game_address: self.env().account_id(),
+                game_address: Self::env().account_id(),
                 round_id: self.current_round.as_ref().unwrap().id,
                 winners,
             });
 
             // TODO: handle checking players who haven't played
-            
+
             // check if there's a next round or game ended
             if self.configs.max_rounds.unwrap_or(999) < self.next_round_id.into() {
                 self.status = GameStatus::Ended;
-                self.env().emit_event(GameEnded {
-                    game_address: self.env().account_id(),
+                Self::env().emit_event(GameEnded {
+                    game_address: Self::env().account_id(),
                 });
             } else {
                 self.current_round = Some(GameRound {
@@ -425,16 +438,15 @@ pub mod game_public_good {
 
         #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
-            if self.status != GameStatus::Ended {
-                return Err(GameError::InvalidGameState)
-            }
-
+            // ensure the game is in ended state
+            ensure!(self.status == GameStatus::Ended, GameError::InvalidGameState);
             // terminate the contract and send remaining balance to the contract's creator
-            self.env().terminate_contract(self.created_by);
+            Self::env().terminate_contract(self.created_by);
         }
     }
 
-    impl GameUtils for GamePublicGood {
+    /// An implementation of the `Utils` trait containing internal helper functions
+    impl Utils for PublicGood {
         fn get_winners(round: &GameRound, configs: &GameConfigs, _players: &Vec<AccountId>) -> Result<Vec<(AccountId, Option<u128>)>, GameError> {
             if round.status != RoundStatus::Ended {
                 return Err(GameError::RoundNotEnded)
@@ -456,6 +468,9 @@ pub mod game_public_good {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use ink::env::test::EmittedEvent;
+
+        type Event = <PublicGood as ::ink::reflect::ContractEventBase>::Type;
 
         struct SetupTestGame {
             join_game: bool,
@@ -471,11 +486,11 @@ pub mod game_public_good {
             ink::env::test::get_account_balance::<ink::env::DefaultEnvironment>(account).unwrap()
         }
 
-        fn setup_game(configs: SetupTestGame) -> GamePublicGood {
+        fn setup_game(configs: SetupTestGame) -> PublicGood {
             let accounts = get_accounts();
 
-            let mut game_public_good = GamePublicGood::default();
-            
+            let mut game_public_good = PublicGood::default();
+
             if configs.join_game {
                 set_caller(accounts.alice);
                 assert!(game_public_good.join(accounts.alice).is_ok());
@@ -518,7 +533,7 @@ pub mod game_public_good {
         /// Default constructor works.
         #[ink::test]
         fn default_works() {
-            let game_public_good = GamePublicGood::default();
+            let game_public_good = PublicGood::default();
             assert_eq!(game_public_good.players, vec![]);
             assert_eq!(game_public_good.get_current_round(), None);
         }
@@ -526,7 +541,7 @@ pub mod game_public_good {
         /// Can construct with "new()" method.
         #[ink::test]
         fn new_works() {
-            let game_public_good = GamePublicGood::new(GameConfigs {
+            let game_public_good = PublicGood::new(GameConfigs {
                 max_players: 10,
                 min_players: 2,
                 min_round_contribution: Some(100),
@@ -547,7 +562,7 @@ pub mod game_public_good {
         fn player_can_join() {
             let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::default();
+            let mut game_public_good = PublicGood::default();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can join when the caller is alice joining as alice (own account)
@@ -559,7 +574,7 @@ pub mod game_public_good {
         fn player_must_join_as_self() {
             let accounts = ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::default();
+            let mut game_public_good = PublicGood::default();
 
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can't join when the caller is alice trying to add bob's account
@@ -569,16 +584,16 @@ pub mod game_public_good {
         /// A player can start the game.
         #[ink::test]
         fn player_can_start_game() {
-            let accounts = 
+            let accounts =
                 ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::default();
-            
+            let mut game_public_good = PublicGood::default();
+
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             assert!(game_public_good.join(accounts.alice).is_ok());
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
             assert!(game_public_good.join(accounts.bob).is_ok());
-            
+
             // can start the game when there are enough players
             match game_public_good.start_game() {
                 Err(error) => {
@@ -592,16 +607,16 @@ pub mod game_public_good {
         /// A player cannot start a game that is already started.
         #[ink::test]
         fn player_cannot_start_already_started_game() {
-            let accounts = 
+            let accounts =
                 ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::default();
-            
+            let mut game_public_good = PublicGood::default();
+
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             assert!(game_public_good.join(accounts.alice).is_ok());
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
             assert!(game_public_good.join(accounts.bob).is_ok());
-            
+
             // can start the game when there are enough players
             assert!(game_public_good.start_game().is_ok());
             // cannot start again
@@ -611,14 +626,14 @@ pub mod game_public_good {
         /// A player cannot start a game that doesn't have enough players.
         #[ink::test]
         fn game_cannot_start_without_enough_players() {
-            let accounts = 
+            let accounts =
                 ink::env::test::default_accounts::<ink::env::DefaultEnvironment>();
 
-            let mut game_public_good = GamePublicGood::default();
-            
+            let mut game_public_good = PublicGood::default();
+
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             assert!(game_public_good.join(accounts.alice).is_ok());
-            
+
             // cannot start, not enough players
             assert_eq!(game_public_good.start_game().err(), Some(GameError::NotEnoughPlayers));
         }
@@ -635,7 +650,7 @@ pub mod game_public_good {
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
-            
+
             // can play a round
             set_value(game_public_good.configs.max_round_contribution.unwrap());
             match game_public_good.play_round(commitment.into()) {
@@ -664,7 +679,7 @@ pub mod game_public_good {
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
-            
+
             // can play a round
             set_value(game_public_good.configs.max_round_contribution.unwrap());
             assert!(game_public_good.play_round(commitment.into()).is_ok());
@@ -686,7 +701,7 @@ pub mod game_public_good {
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             let data = [100u128.to_le_bytes(), 144u128.to_le_bytes()].concat();
             ink::env::hash_bytes::<Blake2x256>(&data, &mut commitment);
-            
+
             // can play a round
             set_value(game_public_good.configs.max_round_contribution.unwrap());
 
@@ -732,7 +747,7 @@ pub mod game_public_good {
             });
 
             set_caller(accounts.alice);
-            
+
             // the reveal used below is different from that which is committed to in the "setup_game" function
             match game_public_good.reveal_round((200, 144)) {
                 Err(_) => assert!(true),
@@ -742,8 +757,6 @@ pub mod game_public_good {
                 },
             };
         }
-
-        type Event = <GamePublicGood as ::ink::reflect::ContractEventBase>::Type;
 
         /// Players can complete a round.
         #[ink::test]
@@ -773,37 +786,22 @@ pub mod game_public_good {
                     // check that the round ID has been incremented
                     assert_eq!(game_public_good.next_round_id, 3);
                     // check that the relevant round completion event is emitted
-                    let events = ink::env::test::recorded_events().collect::<Vec<_>>();
-                    
+                    let events: Vec<EmittedEvent> = ink::env::test::recorded_events().collect::<Vec<_>>();
+
                     // ensure the relevant event is emitted
-                    // TODO: refactor this mess
                     let mut found: bool = false;
-                    println!("Found {:?} events", events.len());
                     for e in events {
                         // decode the event
                         let decoded_event = <Event as scale::Decode>::decode(&mut &e.data[..])
                             .expect("encountered invalid contract event data buffer");
-                        
+
                         // match the event type for the data
                         match decoded_event {
-                            Event::RoundCompleted(data) => {
-                                println!("Round Completed");
+                            Event::RoundCompleted(_data) => {
                                 found = true;
+                                break;
                             },
-                            // Event::RoundCommitPlayed(data) => {
-                            //     match data {
-                            //         RoundCommitPlayed {
-                            //             game_address,
-                            //             player,
-                            //             commitment,
-                            //         } => {
-                            //             println!("RoundCommitPlayed: {:?}", data);
-                            //         },
-                            //     }
-                            // },
-                            _ => {
-                                println!("Unknown event");
-                            }
+                            _ => ()
                         }
                     }
 
@@ -870,6 +868,23 @@ pub mod game_public_good {
             // attempt to complete the round
             assert_eq!(get_balance(accounts.alice), alice_balance + expected_refund);
         }
+
+        #[ink::test]
+        fn only_contract_creator_can_emit_start_event() {
+            let accounts = get_accounts();
+            set_caller(accounts.alice);
+            let mut game_public_good = PublicGood::default();
+
+            // attempt to emit the start event as bob
+            // expect failure
+            set_caller(accounts.bob);
+            matches!(game_public_good.emit_game_started(), Err(GameError::AccessControlError(_)));
+
+            // attempt to emit the stat event as alice
+            // expect success
+            set_caller(accounts.alice);
+            assert!(game_public_good.emit_game_started().is_ok());
+        }
     }
 
     /// On-chain (E2E) tests.
@@ -882,7 +897,7 @@ pub mod game_public_good {
         // Default constructor works.
         #[ink_e2e::test]
         async fn default_works(mut client: ink_e2e::Client<C, E>) -> E2EResult<()> {
-            let constructor = GamePublicGoodRef::default();
+            let constructor = PublicGoodRef::default();
 
             // When
             let contract_account_id = client
@@ -892,7 +907,7 @@ pub mod game_public_good {
                 .account_id;
 
             // Then
-            let get_players = ink_e2e::build_message::<GamePublicGoodRef>(contract_account_id.clone())
+            let get_players = ink_e2e::build_message::<PublicGoodRef>(contract_account_id.clone())
                 .call(|test| test.get_players());
             let get_result = client
                 .call_dry_run(&ink_e2e::alice(), &get_players, 0, None)

@@ -1,20 +1,23 @@
 [package]
-name = "game_public_good"
+name = "rock_paper_scissors"
 version = "0.1.0"
 authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "4.1", default-features = false }
+ink = { version = "4.0.0", default-features = false }
+ink_env = { version = "4.2.0", default-features = false }
+
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-traits = { path = "../traits", default-features = false }
+openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", version = "^3.0.0", default-features = false, features = ["access_control"] }
+game-theory = { path = "../../", default-features = false }
 
 [dev-dependencies]
-ink_e2e = { version = "4.1" }
+ink_e2e = "4.1"
 
 [lib]
-name = "game_public_good"
+name = "rock_paper_scissors"
 path = "lib.rs"
 crate-type = [
 	# Used for normal contract Wasm blobs.
@@ -29,7 +32,7 @@ std = [
     "ink/std",
     "scale/std",
     "scale-info/std",
-    "traits/std",
+    "game-theory/std"
 ]
 ink-as-dependency = []
 e2e-tests = []
