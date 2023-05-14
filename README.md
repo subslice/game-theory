@@ -42,6 +42,8 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ![](./images/architecture.png)
 
+![](./images/architecture-2.png)
+
 ### Project Components
 
 1. **Traits**: the `traits` crate defines the behaviours which every game must provide as well as common types.
