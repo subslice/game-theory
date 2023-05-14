@@ -17,20 +17,18 @@ Taking such an approach means more games can be easily added to extend this proj
 
 ## Motivation
 
-Open-source software such as [oTree](https://www.otree.org/), a behavioural-research platform, is often used to create such games
+Open-source software such as [oTree](https://www.otree.org/), a behavioural-research platform, is often used to create games
 in order to simulate, with students or participants, stakes seen in real-life economics. 
-
 Data from such simulations is then utilized in research papers or case-studies.
 
-This motivates us to create a decentralized version of such games, potentially growing into a network for research purposes
-in later stages of this project. The benefit of using blockchain for such a purpose is the following:
+This motivates us to create a decentralized version of such a platform. The benefit of using blockchain for such a purpose is the following:
 
 * **Transparency and Trust** of data quality and authenticity
 * **High Availability**
 * (potentially) Incentive-driven participation of players
 
-Sources for economics research can vary and be equally valid. Could blockchain and (very) light yet economically motivated games
-introduce a fun way to contribute to this?
+Sources for economics research can vary and be equally valid. Could blockchain and lightweight yet economically motivated games
+introduce a fun way to contribute to this goal?
 
 Another motivation is the exploration of !ink smart contracts functionality for basic game dynamics development.
 
@@ -38,11 +36,13 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ## Overview
 
-### Architecture Diagram
-
-![](./images/architecture.png)
+### High-level Architecture
 
 ![](./images/architecture-2.png)
+
+### Logic Organization
+
+![](./images/architecture.png)
 
 ### Project Components
 
@@ -109,22 +109,34 @@ cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Ca
 
 ### Deploying Contracts
 
-[//]: # (TODO: write)
+Contracts can be deployed on any Substrate chain which supports smart contract functionality via !ink, however, some games' contracts
+require certain `chain-extensions` in order to operate correctly.
 
+For example, the `Dictator` game requires a function which generates a random value. This functionality is available in the 
+[Randomness Pallet](https://docs.rs/pallet-randomness-collective-flip/latest/pallet_randomness_collective_flip/) and can be made 
+accessible by using the `chain-extensions` feature in !ink and add some relevant code in the Runtime to handle calls
+from smart contracts.
+
+> Note: The corresponding Runtime code which handles getting the random value from the pallet is added into a forked
+> version of "Swanky Node". 
+>
+> See the [extension-specific code](https://github.com/subslice/swanky-node/blob/4902e49d19d0581f9a79f1d30fb0e1a4e40b8b29/runtime/src/chain_extensions.rs)
+> added to the [forked Swanky Node Repo](https://github.com/subslice/swanky-node) for reference.
 
 ---
 
 ## Next Steps
 
-- [ ] ...
-- [ ] ...
-- [ ] ...
-- [ ] ...
+- [ ] Create our own proper UI for Game Theory experiments
+- [ ] Use shared events: https://github.com/subslice/game-theory/issues/33
+- [ ] Move completely to OpenBrush
+- [ ] Enable Upgradeability: https://github.com/subslice/game-theory/issues/34
+- [ ] Use Mappings instead of Vector of Tuple: https://github.com/subslice/game-theory/issues/10
 
 ---
 
 ## Contributors
 
-- [Faisal A.](#)
-- [Arthur F.M.](#)
+- [Faisal A.](https://github.com/FaisalAl-Tameemi)
+- [Arthur F. M.](https://github.com/a-moreira)
 
