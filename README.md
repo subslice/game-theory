@@ -127,15 +127,16 @@ from smart contracts.
 
 ## Next Steps
 
-- [ ] ...
-- [ ] ...
-- [ ] ...
-- [ ] ...
+- [ ] Create our own proper UI for Game Theory experiments
+- [ ] Use shared events: https://github.com/subslice/game-theory/issues/33
+- [ ] Move completely to OpenBrush
+- [ ] Enable Upgradeability: https://github.com/subslice/game-theory/issues/34
+- [ ] Use Mappings instead of Vector of Tuple: https://github.com/subslice/game-theory/issues/10
 
 ---
 
 ## Contributors
 
-- [Faisal A.](#)
-- [Arthur F.M.](#)
+- [Faisal A.](https://github.com/FaisalAl-Tameemi)
+- [Arthur F. M.](https://github.com/a-moreira)
 
