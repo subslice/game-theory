@@ -13,7 +13,7 @@ explaining the game's logic.
 
 ## Explanation & Demo Video
 
-<iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/7MqKyjXFkHQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+[![Youtube Video](https://img.youtube.com/vi/7MqKyjXFkHQ/0.jpg)](https://www.youtube.com/watch?v=7MqKyjXFkHQ)
 
 > Only a couple of games are currently implemented, deployable (tested on Shibuya) and playable from the list linked above, however, the implementation
 is done such that it follows a standardized set of traits (see `./logics/traits` directory) defined within the reusable (across contracts) code
