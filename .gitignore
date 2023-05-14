@@ -12,3 +12,5 @@ Cargo.lock
 /node_modules/
 /out/
 /ts_contracts/
+.fleet
+.idea
