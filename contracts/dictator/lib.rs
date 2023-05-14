@@ -8,13 +8,13 @@ mod dictator {
     use game_theory::logics::traits::types::{
         GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
     };
-    use ink::codegen::{EmitEvent, Env};
+    use ink::codegen::{Env};
     use ink::env::hash::{Blake2x256, HashOutput};
     use ink::prelude::vec::Vec;
-    use ink::env::{DefaultEnvironment};
+    
     use openbrush::contracts::access_control::extensions::enumerable::*;
-    use openbrush::contracts::access_control::only_role;
-    use openbrush::modifiers;
+    
+    
     use openbrush::traits::{DefaultEnv, Storage};
 
     /// Access control roles
@@ -257,7 +257,7 @@ mod dictator {
 
             let caller = Self::env().caller();
 
-            if let Some(p) = current_round
+            if let Some(_p) = current_round
                 .player_commits
                 .iter()
                 .find(|(c, _)| c == &caller) {
