@@ -29,24 +29,27 @@ in later stages of this project. The benefit of using blockchain for such a purp
 Sources for economics research can vary and be equally valid. Could blockchain and (very) light yet economically motivated games
 introduce a fun way to contribute to this?
 
+Another motivation is the exploration of !ink smart contracts functionality for basic game dynamics development.
+
 ---
 
 ## Overview
 
-### Overview & Architecture
+### Architecture Diagram
 
 ![](./images/architecture.png)
 
 ### Project Components
 
 1. **Traits**: the `traits` crate defines the behaviours which every game must provide as well as common types.
-    * The `trait-defintion` of `Lifecycle` specifies the methods which must be implemented by each game.
-    * Common types include `Error`, `GameStatus`, `RoundStatus`, `GameRound` and `GameConfigs`.
+    * There 3 `trait-defintion`s which specify the methods needed by each game. `Lifecycle` (game play methods),
+      `Basic` (simple getters/setters) and `Admin` (admin-level methods). See [traits](./logics/traits) module.
+    * Common types include `GameError`, `GameConfigs` and other relevant data types. See [types](./logics/traits/types.rs) module.
 
-2. **Games**: the games themselves are example contract implementations (`rock_paper_scissors` and `public_good`) of the `Lifecycle` trait.
+2. **Games**: the games are !ink smart contracts which implement a subset or all the traits mentioned above.
     * Each __instance__ of a game contract represents a single game play.
     * To play the game again, a new __instance__ must be launched.
-    * The contract should self-destruct once the game is completed and final round's winnings are issued.
+    * The contract should terminate once the game is completed and the final round's winnings are issued.
 
 3. [post hackathon] **Router**: the `games_router` create defines a generic contract which the UI will invoke when launching 
 new games as well as when having high-level interactions with the games' contracts.
@@ -54,8 +57,9 @@ new games as well as when having high-level interactions with the games' contrac
    * It is extensible to allow future games to be added.
 
 4. [post hackathon] **Typescript/React UI**
-   a. Add **Subsquid** for event indexing and lookup
+   a. Add event indexing and lookup
    b. Add Admin / Analytics dashboard
+   c. Add ability to connect using a wallet (see [use-inkathon](https://github.com/scio-labs/use-inkathon))
 
 ---
 
