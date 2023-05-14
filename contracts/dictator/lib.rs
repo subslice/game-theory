@@ -87,6 +87,16 @@ mod dictator {
         round_id: u8,
         total_contribution: u128,
     }
+
+    #[ink(event)]
+    pub struct GameEndowmentDeposited {
+        #[ink(topic)]
+        creator: AccountId,
+        #[ink(topic)]
+        game_address: AccountId,
+        endowment: u128,
+    }
+
     /// Storage of the Dictator Game
     #[ink(storage)]
     #[derive(Storage)]
@@ -107,10 +117,11 @@ mod dictator {
         creator: AccountId,
         /// The configurations of the game
         configs: GameConfigs,
+        /// current random seed
+        seed: [u8; 32],
     }
 
     impl Dictator {
-        /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
         pub fn new(configs: GameConfigs) -> Self {
             let mut instance = Self {
@@ -121,9 +132,16 @@ mod dictator {
                 rounds: Vec::new(),
                 current_round: None,
                 next_round_id: 1,
-                configs,
+                configs: configs.clone(),
+                seed: [0u8; 32]
             };
             let caller = <Self as DefaultEnv>::env().caller();
+
+            if let Some(max_rounds) = configs.max_rounds {
+                if max_rounds > 1 {
+                    panic!("Dictator is not rounds based")
+                }
+            }
 
             instance._init_with_admin(caller);
             instance
@@ -136,19 +154,40 @@ mod dictator {
         /// Default constructor
         #[ink(constructor)]
         pub fn default() -> Self {
-            unimplemented!();
+            Self::new(GameConfigs {
+                max_players: 2,
+                min_players: 2,
+                min_round_contribution: Some(100),
+                max_round_contribution: Some(1_000),
+                round_reward_multiplier: None,
+                post_round_actions: false,
+                round_timeout: None,
+                max_rounds: Some(1),
+                join_fee: None,
+                is_rounds_based: false,
+            })
         }
 
-        /// Seed a random value by passing some known argument `subject` to the runtime's
-        /// random source. Then, update the current `value` stored in this contract with the
-        /// new random value.
         #[ink(message)]
-        pub fn update(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
-            // Get the on-chain random seed
-            let new_random = self.env().extension().fetch_random(subject)?;
-            // Emit the `RandomUpdated` event when the random seed
-            // is successfully fetched.
-            Ok(new_random)
+        pub fn make_deposit(&mut self) -> Result<(), GameError> {
+            if self.env().transferred_value() < 100 {
+                return Err(GameError::InsufficientJoiningFees)
+            }
+
+            self.env().emit_event(GameEndowmentDeposited {
+                creator: self.env().caller(),
+                game_address: self.env().account_id(),
+                endowment: self.env().transferred_value()
+            });
+
+            Ok(())
+        }
+
+        #[ink(message)]
+        pub fn set_random_seed(&mut self, seed: [u8; 32]) -> Result<[u8; 32], GameError> {
+            self.seed = seed;
+
+            Ok(seed)
         }
     }
 
@@ -228,6 +267,9 @@ mod dictator {
             self.status = GameStatus::OnGoing;
             self.next_round_id += 1;
 
+            let new_random = self.env().extension().fetch_random(self.seed).unwrap();
+            // let r = u8::from_le_bytes(new_random);
+
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameStarted {
                 game_address: Self::env().account_id(),
                 players: self.players.clone(),
@@ -272,9 +314,9 @@ mod dictator {
 
             let value = Self::env().transferred_value();
 
-            current_round.player_contributions.push((caller, value));
-            current_round.player_commits.push((caller, commitment));
-            current_round.total_contribution += value;
+            // current_round.player_contributions.push((caller, value));
+            // current_round.player_commits.push((caller, commitment));
+            // current_round.total_contribution += value;
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerCommitted {
                 game_address: Self::env().account_id(),
@@ -298,38 +340,7 @@ mod dictator {
 
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
-            if reveal.0 > 2 {
-                return Err(GameError::InvalidChoice)
-            }
-
-            let caller = Self::env().caller();
-            let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
-            let mut output = <Blake2x256 as HashOutput>::Type::default(); // 256 bit buffer
-            ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
-            let current_round = self.current_round.as_mut().unwrap();
-
-            let player_commitment = current_round
-                .player_commits
-                .iter()
-                .find(|(c, _)| c == &caller);
-
-            if let Some(c) = player_commitment {
-                if c.1 != output.into() {
-                    return Err(GameError::InvalidReveal);
-                }
-            } else {
-                return Err(GameError::CommitmentNotFound);
-            }
-
-            current_round.player_reveals.push((caller, reveal));
-
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerRevealed {
-                game_address: Self::env().account_id(),
-                player: caller,
-                reveal,
-            });
-
-            Ok(())
+            unimplemented!()
         }
 
         #[ink(message, payable)]
@@ -350,26 +361,6 @@ mod dictator {
             let rewards = current_round.total_contribution;
 
             let mut winners = Vec::new();
-            let score = (player1.1.0 - player2.1.0) % 3;
-
-            match score {
-                1 => {
-                    Self::env().transfer(player1.0, rewards)
-                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
-                    winners.push((player1.0, rewards))
-                }
-                2 => {
-                    Self::env().transfer(player2.0, rewards)
-                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
-                    winners.push((player2.0, rewards))
-                }
-                0 => {
-                    self.next_round_id += 1;
-                    return Ok(());
-                }
-
-                _ => return Err(GameError::FailedToCloseRound),
-            }
 
             current_round.status = RoundStatus::Ended;
 
