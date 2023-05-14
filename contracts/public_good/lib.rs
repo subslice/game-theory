@@ -474,7 +474,8 @@ pub mod public_good {
             // any paid amount should be transferred to that particular player from the contract
             let value = Self::env().transferred_value();
             if value > 0 {
-                Self::env().transfer(player, Self::env().transferred_value());
+                Self::env().transfer(player, Self::env().transferred_value())
+                    .map_err(|_| GameError::FailedToAddPlayer)?;
             }
             // emit PlayerJoined event
             Self::env().emit_event(PlayerJoined {
@@ -495,7 +496,8 @@ pub mod public_good {
             ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
 
             let value = Self::env().transferred_value();
-            // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation
+            // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation.
+            // It's the reason we require the max_round_contribution amount here
             ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
 
             let caller = as_player.clone();

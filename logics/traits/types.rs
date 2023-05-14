@@ -50,7 +50,9 @@ pub enum GameError {
     /// Player already played n this round
     PlayerAlreadyCommitted,
     /// Player choice for the round is not valid
-    InvalidChoice
+    InvalidChoice,
+    /// Admin error - failed to add player to game state
+    FailedToAddPlayer,
 }
 
 impl From<AccessControlError> for GameError {
