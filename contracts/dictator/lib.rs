@@ -138,8 +138,8 @@ mod dictator {
         seed: Option<[u8; 32]>,
         /// current round dictator
         dictator: Option<AccountId>,
-        /// endownment
-        current_endownment: Option<u128>,
+        /// endowment each player will receive in the current round
+        current_prize: Option<u128>,
     }
 
     impl Dictator {
@@ -156,7 +156,7 @@ mod dictator {
                 configs: configs.clone(),
                 seed: None,
                 dictator: None,
-                current_endownment: None,
+                current_prize: None,
             };
             let caller = <Self as DefaultEnv>::env().caller();
 
@@ -291,18 +291,14 @@ mod dictator {
             self.status = GameStatus::OnGoing;
             self.next_round_id += 1;
 
-            let min_endownment = self.configs.min_round_contribution;
-            ensure!(min_endownment.is_some(), GameError::EndowmentNotSet);
-            ensure!(self.current_endownment.unwrap() > min_endownment.unwrap(), GameError::EndownmentNotEnough);
+            ensure!(self.configs.min_round_contribution.is_some(), GameError::InvalidRoundContribution);
+            ensure!(self.env().balance() > self.configs.min_round_contribution.unwrap(), GameError::BalanceNotEnough);
 
             ensure!(self.seed.is_some(), GameError::SeedNotSet);
             let new_random = self.env().extension().fetch_random(self.seed.unwrap()).unwrap();
             let rand_int = u32::from_ne_bytes(new_random[0..4].try_into().unwrap());
-            debug_println!("{:?}", new_random);
-            debug_println!("{}", rand_int);
-            let r = rand_int as usize % self.players.len();
-            debug_println!("{}", r);
-            let dictator = self.players.get(r).unwrap();
+            let idx = rand_int as usize % self.players.len();
+            let dictator = self.players.get(idx).unwrap();
             self.dictator = Some(*dictator);
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), DictatorChosen {
@@ -346,17 +342,7 @@ mod dictator {
                     return Err(GameError::PlayerAlreadyCommitted);
                 }
 
-            if let Some(min_round_contribution) = self.configs.min_round_contribution {
-                if Self::env().transferred_value() < min_round_contribution {
-                    return Err(GameError::InvalidRoundContribution);
-                }
-            }
-
-            let value = Self::env().transferred_value();
-
-            current_round.player_contributions.push((caller, value));
             current_round.player_commits.push((caller, commitment));
-            // current_round.total_contribution += value;
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerCommitted {
                 game_address: Self::env().account_id(),
@@ -388,12 +374,13 @@ mod dictator {
             let mut current_round = self.current_round.clone().unwrap();
             
             // we check if the dictator prize to each player
-            // sums up to the total endownment
+            // sums up to the total endowment
             if self.env().caller() == self.dictator.unwrap() {
                 let prize = reveal.0;
-                if prize * self.players.len() as u128 > self.current_endownment.unwrap() {
+                if prize * self.players.len() as u128 > self.env().balance() {
                     return Err(GameError::InvalidReveal);
                 }
+                self.current_prize = Some(prize);
             }
 
             let player_commitment = current_round
@@ -424,7 +411,7 @@ mod dictator {
 
         #[ink(message, payable)]
         fn complete_round(&mut self) -> Result<(), GameError> {
-            let current_round = self.current_round.as_mut().unwrap();
+            let mut current_round = self.current_round.clone().unwrap();
 
             if current_round.player_reveals.len() != self.players.len() {
                 return Err(GameError::NotAllPlayersRevealed);
@@ -434,21 +421,29 @@ mod dictator {
                 return Err(GameError::InvalidRoundState);
             };
 
-            let player1 = current_round.player_reveals[0];
-            let player2 = current_round.player_reveals[1];
-
-            let rewards = current_round.total_contribution;
-
-            let mut winners = Vec::new();
-
             current_round.status = RoundStatus::Ended;
+
+            ensure!(self.current_prize.is_some(), GameError::EndowmentNotSet);
+            let current_prize = self.current_prize.unwrap();
+
+            let mut receivers: Vec<(AccountId, u128)> = Vec::new();
+
+            for (caller, reveal) in current_round.player_reveals.iter() {
+                if reveal.0 == 1 {
+                    let recv = (*caller, current_prize);
+                    self.env().transfer(recv.0, recv.1).map_err(|_| GameError::FailedToIssueWinnerRewards)?;
+                    receivers.push(recv);
+                }
+            }
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), RoundEnded {
                 game_address: Self::env().account_id(),
-                winners,
+                winners: receivers,
                 round_id: self.next_round_id,
-                total_contribution: rewards,
+                total_contribution: self.current_prize.unwrap(),
             });
+
+            self.current_round = Some(current_round);
 
             Ok(())
         }
@@ -581,10 +576,8 @@ mod dictator {
 
         #[ink(message, payable)]
         fn fund_contract(&mut self) -> Result<(), GameError> {
-            let endownment = self.env().transferred_value();
-            ensure!(endownment > self.configs.min_round_contribution.unwrap(), GameError::InsufficientJoiningFees);
-
-            self.current_endownment = Some(endownment);
+            let value = self.env().transferred_value();
+            ensure!(value > self.configs.min_round_contribution.unwrap(), GameError::EndowmentNotEnough);
 
             ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameEndowmentDeposited {
                 creator: self.env().caller(),
@@ -605,7 +598,6 @@ mod dictator {
         #[ink::test]
         fn default_works() {
             let mut dictator = Dictator::default();
-            // assert_eq!(dictator.get(), [0u8; 32]);
         }
     }
 

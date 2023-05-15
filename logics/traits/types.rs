@@ -57,9 +57,11 @@ pub enum GameError {
     /// Contract balance is not set for operation
     EndowmentNotSet,
     /// Contract balance is not enough for operation
-    EndownmentNotEnough,
+    EndowmentNotEnough,
     /// Seed for random generation not se
     SeedNotSet,
+    /// Not enough balance to use in the game
+    BalanceNotEnough
 }
 
 impl From<AccessControlError> for GameError {
