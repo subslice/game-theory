@@ -200,21 +200,14 @@ mod dictator {
             Ok(seed)
         }
 
+        // TODO: this is would be on the front end
         #[ink(message)]
-        pub fn update(&mut self, subject: [u8; 32]) -> Result<[u8; 32], RandomReadErr> {
-            // Get the on-chain random seed
-            let new_random = self.env().extension().fetch_random(subject)?;
-            // self.value = new_random;
-            // Emit the `RandomUpdated` event when the random seed
-            // is successfully fetched.
-            Ok(new_random)
+        pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
+            let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
+            let mut output = <Blake2x256 as HashOutput>::Type::default();
+            ink::env::hash_bytes::<Blake2x256>(&data, &mut output);
+            Ok(output.into())
         }
-
-        // /// Return the last stored random value
-        // #[ink(message)]
-        // pub fn get(&mut self) -> [u8; 32] {
-        //     self.value
-        // }
     }
 
     impl Basic for Dictator {

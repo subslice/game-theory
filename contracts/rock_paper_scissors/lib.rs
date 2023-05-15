@@ -21,12 +21,6 @@ pub mod rock_paper_scissors {
     /// Access control roles
     const CREATOR: RoleType = ink::selector_id!("CREATOR");
 
-    enum Choice {
-        Rock,     // 0
-        Paper,    // 1
-        Scissors, // 2
-    }
-
     #[ink(event)]
     pub struct GameCreated {
         #[ink(topic)]
@@ -180,9 +174,8 @@ pub mod rock_paper_scissors {
 
             Ok(())
         }
-
-        // testing purposes only
-        // this operation should be done by the UI/frontend
+        
+        // TODO: this is would be on the front end
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();

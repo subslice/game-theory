@@ -199,7 +199,7 @@ pub mod public_good {
             Ok(())
         }
 
-        // TODO: remove
+        // TODO: this is would be on the front end
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
