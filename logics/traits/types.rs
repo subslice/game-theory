@@ -54,6 +54,12 @@ pub enum GameError {
     InvalidChoice,
     /// Admin error - failed to add player to game state
     FailedToAddPlayer,
+    /// Contract balance is not set for operation
+    EndowmentNotSet,
+    /// Contract balance is not enough for operation
+    EndownmentNotEnough,
+    /// Seed for random generation not se
+    SeedNotSet,
 }
 
 impl From<AccessControlError> for GameError {

@@ -135,9 +135,11 @@ mod dictator {
         /// The configurations of the game
         configs: GameConfigs,
         /// current random seed
-        seed: [u8; 32],
+        seed: Option<[u8; 32]>,
         /// current round dictator
         dictator: Option<AccountId>,
+        /// endownment
+        current_endownment: Option<u128>,
     }
 
     impl Dictator {
@@ -152,8 +154,9 @@ mod dictator {
                 current_round: None,
                 next_round_id: 1,
                 configs: configs.clone(),
-                seed: [0u8; 32],
+                seed: None,
                 dictator: None,
+                current_endownment: None,
             };
             let caller = <Self as DefaultEnv>::env().caller();
 
@@ -177,8 +180,8 @@ mod dictator {
             Self::new(GameConfigs {
                 max_players: 2,
                 min_players: 2,
-                min_round_contribution: Some(100),
-                max_round_contribution: Some(1_000),
+                min_round_contribution: Some(100_000),
+                max_round_contribution: Some(1_000_000),
                 round_reward_multiplier: None,
                 post_round_actions: false,
                 round_timeout: None,
@@ -189,23 +192,8 @@ mod dictator {
         }
 
         #[ink(message)]
-        pub fn make_deposit(&mut self) -> Result<(), GameError> {
-            if self.env().transferred_value() < 100 {
-                return Err(GameError::InsufficientJoiningFees)
-            }
-
-            self.env().emit_event(GameEndowmentDeposited {
-                creator: self.env().caller(),
-                game_address: self.env().account_id(),
-                endowment: self.env().transferred_value()
-            });
-
-            Ok(())
-        }
-
-        #[ink(message)]
         pub fn set_random_seed(&mut self, seed: [u8; 32]) -> Result<[u8; 32], GameError> {
-            self.seed = seed;
+            self.seed = Some(seed);
 
             Ok(seed)
         }
@@ -303,7 +291,12 @@ mod dictator {
             self.status = GameStatus::OnGoing;
             self.next_round_id += 1;
 
-            let new_random = self.env().extension().fetch_random(self.seed).unwrap();
+            let min_endownment = self.configs.min_round_contribution;
+            ensure!(min_endownment.is_some(), GameError::EndowmentNotSet);
+            ensure!(self.current_endownment.unwrap() > min_endownment.unwrap(), GameError::EndownmentNotEnough);
+
+            ensure!(self.seed.is_some(), GameError::SeedNotSet);
+            let new_random = self.env().extension().fetch_random(self.seed.unwrap()).unwrap();
             let rand_int = u32::from_ne_bytes(new_random[0..4].try_into().unwrap());
             debug_println!("{:?}", new_random);
             debug_println!("{}", rand_int);
@@ -391,15 +384,24 @@ mod dictator {
             let data = [reveal.0.to_le_bytes(), reveal.1.to_le_bytes()].concat();
             let mut output = <Blake2x256 as HashOutput>::Type::default(); // 256 bit buffer
             ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
-            let current_round = self.current_round.as_mut().unwrap();
+
+            let mut current_round = self.current_round.clone().unwrap();
+            
+            // we check if the dictator prize to each player
+            // sums up to the total endownment
+            if self.env().caller() == self.dictator.unwrap() {
+                let prize = reveal.0;
+                if prize * self.players.len() as u128 > self.current_endownment.unwrap() {
+                    return Err(GameError::InvalidReveal);
+                }
+            }
 
             let player_commitment = current_round
                 .player_commits
                 .iter()
                 .find(|(c, _)| c == &caller);
-
-            if let Some(c) = player_commitment {
-                if c.1 != output.into() {
+            if let Some(commit) = player_commitment {
+                if commit.1 != output.into() {
                     return Err(GameError::InvalidReveal);
                 }
             } else {
@@ -413,6 +415,8 @@ mod dictator {
                 player: caller,
                 reveal,
             });
+
+            self.current_round = Some(current_round);
 
             Ok(())
 
@@ -576,8 +580,17 @@ mod dictator {
         }
 
         #[ink(message, payable)]
-        fn fund_contract(&self) -> Result<(), GameError> {
-            // ensure!(self.env().transferred_value() > 0);
+        fn fund_contract(&mut self) -> Result<(), GameError> {
+            let endownment = self.env().transferred_value();
+            ensure!(endownment > self.configs.min_round_contribution.unwrap(), GameError::InsufficientJoiningFees);
+
+            self.current_endownment = Some(endownment);
+
+            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameEndowmentDeposited {
+                creator: self.env().caller(),
+                game_address: self.env().account_id(),
+                endowment: self.env().transferred_value()
+            });
 
             Ok(())
         }

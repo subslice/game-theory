@@ -611,7 +611,7 @@ pub mod public_good {
         }
 
         #[ink(message, payable)]
-        fn fund_contract(&self) -> Result<(), GameError> {
+        fn fund_contract(&mut self) -> Result<(), GameError> {
             // ensure!(self.env().transferred_value() > 0);
 
             Ok(())

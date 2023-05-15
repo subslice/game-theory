@@ -38,5 +38,5 @@ pub trait GameAdmin {
 
     /// A general helper method to put funds into the game's contract as the deployer/admin.
     #[ink(message, payable)]
-    fn fund_contract(&self) -> Result<(), GameError>;
+    fn fund_contract(&mut self) -> Result<(), GameError>;
 }
