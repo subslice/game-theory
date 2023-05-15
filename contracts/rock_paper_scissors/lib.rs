@@ -293,7 +293,7 @@ pub mod rock_paper_scissors {
 
             let caller = Self::env().caller();
 
-            if let Some(p) = current_round
+            if let Some(_p) = current_round
                 .player_commits
                 .iter()
                 .find(|(c, _)| c == &caller)

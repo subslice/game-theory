@@ -6,15 +6,20 @@ pub use self::public_good::{PublicGood, PublicGoodRef};
 // noinspection ALL
 #[openbrush::contract]
 pub mod public_good {
-    use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
-    use game_theory::logics::traits::{ basic::*, lifecycle::*, utils::*, admin::* };
     use game_theory::ensure;
-    use ink::prelude::vec::Vec;
-    use ink::env::hash::{Blake2x256, HashOutput};
-    use openbrush::{modifiers, traits::{DefaultEnv, Storage}};
-    use openbrush::contracts::access_control::{extensions::enumerable::*, only_role};
+    use game_theory::logics::traits::types::{
+        GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
+    };
+    use game_theory::logics::traits::{admin::*, basic::*, lifecycle::*, utils::*};
     use ink::codegen::EmitEvent;
     use ink::codegen::Env;
+    use ink::env::hash::{Blake2x256, HashOutput};
+    use ink::prelude::vec::Vec;
+    use openbrush::contracts::access_control::{extensions::enumerable::*, only_role};
+    use openbrush::{
+        modifiers,
+        traits::{DefaultEnv, Storage},
+    };
 
     /// Access control roles
     const CREATOR: RoleType = ink::selector_id!("CREATOR");
@@ -516,13 +521,17 @@ pub mod public_good {
         #[modifiers(only_role(CREATOR))]
         fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
             // ensure that there's more room in the game
-            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            ensure!(
+                self.players.len() < self.configs.max_players as usize,
+                GameError::MaxPlayersReached
+            );
             // add player to state
             self.players.push(player);
             // any paid amount should be transferred to that particular player from the contract
             let value = Self::env().transferred_value();
             if value > 0 {
-                Self::env().transfer(player, Self::env().transferred_value())
+                Self::env()
+                    .transfer(player, Self::env().transferred_value())
                     .map_err(|_| GameError::FailedToAddPlayer)?;
             }
             // emit PlayerJoined event
@@ -535,39 +544,51 @@ pub mod public_good {
 
         #[ink(message)]
         #[modifiers(only_role(CREATOR))]
-        fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError> {
+        fn play_round_as_player(
+            &mut self,
+            as_player: AccountId,
+            commitment: Hash,
+        ) -> Result<(), GameError> {
             // TODO: refactor this logic into something re-usable for both admin and player
 
             // ensure valid game state
-            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            ensure!(
+                self.status == GameStatus::OnGoing,
+                GameError::GameNotStarted
+            );
             // ensure current round exists
             ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
 
             let value = Self::env().transferred_value();
             // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation.
             // It's the reason we require the max_round_contribution amount here
-            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
+            ensure!(
+                value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)),
+                GameError::InvalidRoundContribution
+            );
 
             let caller = as_player.clone();
             let current_round = self.current_round.as_mut().unwrap();
 
             // ensure that the player hasn't already made a commitment
             ensure!(
-                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                current_round
+                    .player_commits
+                    .iter()
+                    .find(|(player, _)| player == &caller)
+                    .is_none(),
                 GameError::PlayerAlreadyCommitted
             );
 
             // store the commit
-            current_round.player_commits.push((
-                as_player.clone(),
-                commitment,
-            ));
+            current_round
+                .player_commits
+                .push((as_player.clone(), commitment));
 
             // keep track of round contribution(s)
-            current_round.player_contributions.push((
-                as_player.clone(),
-                value,
-            ));
+            current_round
+                .player_contributions
+                .push((as_player.clone(), value));
 
             current_round.total_contribution += value;
 
@@ -592,7 +613,7 @@ pub mod public_good {
         fn reveal_round_as_player(&mut self) -> Result<(), GameError> {
             todo!("implement")
         }
-        
+
         #[ink(message)]
         #[modifiers(only_role(CREATOR))]
         fn force_complete_round(&mut self) -> Result<(), GameError> {

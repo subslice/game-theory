@@ -61,7 +61,7 @@ pub enum GameError {
     /// Seed for random generation not se
     SeedNotSet,
     /// Not enough balance to use in the game
-    BalanceNotEnough
+    BalanceNotEnough,
 }
 
 impl From<AccessControlError> for GameError {

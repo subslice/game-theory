@@ -2,21 +2,23 @@
 
 #[openbrush::contract(env = CustomEnvironment)]
 mod dictator {
+    use game_theory::ensure;
     use game_theory::logics::traits::basic::*;
-    use game_theory::logics::traits::{ basic::*, lifecycle::*, utils::*, admin::* };
     use game_theory::logics::traits::types::{CustomEnvironment, RandomReadErr};
-    use openbrush::{modifiers, traits::{DefaultEnv, Storage}};
     use game_theory::logics::traits::types::{
         GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
     };
-    use ink::codegen::{Env};
-    use game_theory::ensure;
+    use game_theory::logics::traits::{admin::*, lifecycle::*};
+    use ink::codegen::Env;
     use ink::env::hash::{Blake2x256, HashOutput};
     use ink::prelude::vec::Vec;
-    
-    use ink_env::debug_println;
+    use openbrush::{
+        modifiers,
+        traits::{DefaultEnv, Storage},
+    };
+
     use openbrush::contracts::access_control::{extensions::enumerable::*, only_role};
-    
+
     /// Access control roles
     const CREATOR: RoleType = ink::selector_id!("CREATOR");
 
@@ -258,10 +260,13 @@ mod dictator {
 
             self.players.push(player);
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerJoined {
-                game_address: Self::env().account_id(),
-                player: Self::env().caller(),
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                PlayerJoined {
+                    game_address: Self::env().account_id(),
+                    player: Self::env().caller(),
+                },
+            );
 
             Ok(self.players.len() as u8)
         }
@@ -291,25 +296,41 @@ mod dictator {
             self.status = GameStatus::OnGoing;
             self.next_round_id += 1;
 
-            ensure!(self.configs.min_round_contribution.is_some(), GameError::InvalidRoundContribution);
-            ensure!(self.env().balance() > self.configs.min_round_contribution.unwrap(), GameError::BalanceNotEnough);
+            ensure!(
+                self.configs.min_round_contribution.is_some(),
+                GameError::InvalidRoundContribution
+            );
+            ensure!(
+                self.env().balance() > self.configs.min_round_contribution.unwrap(),
+                GameError::BalanceNotEnough
+            );
 
             ensure!(self.seed.is_some(), GameError::SeedNotSet);
-            let new_random = self.env().extension().fetch_random(self.seed.unwrap()).unwrap();
+            let new_random = self
+                .env()
+                .extension()
+                .fetch_random(self.seed.unwrap())
+                .unwrap();
             let rand_int = u32::from_ne_bytes(new_random[0..4].try_into().unwrap());
             let idx = rand_int as usize % self.players.len();
             let dictator = self.players.get(idx).unwrap();
             self.dictator = Some(*dictator);
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), DictatorChosen {
-                dictator: *dictator,
-                endowment: self.env().balance(),
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                DictatorChosen {
+                    dictator: *dictator,
+                    endowment: self.env().balance(),
+                },
+            );
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameStarted {
-                game_address: Self::env().account_id(),
-                players: self.players.clone(),
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                GameStarted {
+                    game_address: Self::env().account_id(),
+                    players: self.players.clone(),
+                },
+            );
 
             Ok(())
         }
@@ -338,24 +359,31 @@ mod dictator {
             if let Some(_p) = current_round
                 .player_commits
                 .iter()
-                .find(|(c, _)| c == &caller) {
-                    return Err(GameError::PlayerAlreadyCommitted);
-                }
+                .find(|(c, _)| c == &caller)
+            {
+                return Err(GameError::PlayerAlreadyCommitted);
+            }
 
             current_round.player_commits.push((caller, commitment));
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerCommitted {
-                game_address: Self::env().account_id(),
-                player: caller,
-                commitment,
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                PlayerCommitted {
+                    game_address: Self::env().account_id(),
+                    player: caller,
+                    commitment,
+                },
+            );
 
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
-                ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), AllPlayersCommitted {
-                    game_address: Self::env().account_id(),
-                    commits: current_round.player_commits.clone(),
-                })
+                ink::codegen::EmitEvent::<Dictator>::emit_event(
+                    self.env(),
+                    AllPlayersCommitted {
+                        game_address: Self::env().account_id(),
+                        commits: current_round.player_commits.clone(),
+                    },
+                )
             }
 
             // binding new current_round
@@ -372,7 +400,7 @@ mod dictator {
             ink_env::hash_bytes::<Blake2x256>(&data, &mut output);
 
             let mut current_round = self.current_round.clone().unwrap();
-            
+
             // we check if the dictator prize to each player
             // sums up to the total endowment
             if self.env().caller() == self.dictator.unwrap() {
@@ -397,16 +425,18 @@ mod dictator {
 
             current_round.player_reveals.push((caller, reveal));
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerRevealed {
-                game_address: Self::env().account_id(),
-                player: caller,
-                reveal,
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                PlayerRevealed {
+                    game_address: Self::env().account_id(),
+                    player: caller,
+                    reveal,
+                },
+            );
 
             self.current_round = Some(current_round);
 
             Ok(())
-
         }
 
         #[ink(message, payable)]
@@ -431,17 +461,22 @@ mod dictator {
             for (caller, reveal) in current_round.player_reveals.iter() {
                 if reveal.0 == 1 {
                     let recv = (*caller, current_prize);
-                    self.env().transfer(recv.0, recv.1).map_err(|_| GameError::FailedToIssueWinnerRewards)?;
+                    self.env()
+                        .transfer(recv.0, recv.1)
+                        .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     receivers.push(recv);
                 }
             }
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), RoundEnded {
-                game_address: Self::env().account_id(),
-                winners: receivers,
-                round_id: self.next_round_id,
-                total_contribution: self.current_prize.unwrap(),
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                RoundEnded {
+                    game_address: Self::env().account_id(),
+                    winners: receivers,
+                    round_id: self.next_round_id,
+                    total_contribution: self.current_prize.unwrap(),
+                },
+            );
 
             self.current_round = Some(current_round);
 
@@ -462,10 +497,13 @@ mod dictator {
 
             self.status = GameStatus::Ended;
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameEnded {
-                game_address: Self::env().account_id(),
-                rounds_played: self.next_round_id,
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                GameEnded {
+                    game_address: Self::env().account_id(),
+                    rounds_played: self.next_round_id,
+                },
+            );
 
             Self::env().terminate_contract(self.creator);
         }
@@ -476,74 +514,99 @@ mod dictator {
         #[modifiers(only_role(CREATOR))]
         fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
             // ensure that there's more room in the game
-            ensure!(self.players.len() < self.configs.max_players as usize, GameError::MaxPlayersReached);
+            ensure!(
+                self.players.len() < self.configs.max_players as usize,
+                GameError::MaxPlayersReached
+            );
             // add player to state
             self.players.push(player);
             // any paid amount should be transferred to that particular player from the contract
             let value = Self::env().transferred_value();
             if value > 0 {
-                Self::env().transfer(player, Self::env().transferred_value())
+                Self::env()
+                    .transfer(player, Self::env().transferred_value())
                     .map_err(|_| GameError::FailedToAddPlayer)?;
             }
             // emit PlayerJoined event
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), PlayerJoined {
-                game_address: Self::env().account_id(),
-                player,
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                PlayerJoined {
+                    game_address: Self::env().account_id(),
+                    player,
+                },
+            );
             Ok(self.players.len() as u8)
         }
 
         #[ink(message)]
         #[modifiers(only_role(CREATOR))]
-        fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError> {
+        fn play_round_as_player(
+            &mut self,
+            as_player: AccountId,
+            commitment: Hash,
+        ) -> Result<(), GameError> {
             // TODO: refactor this logic into something re-usable for both admin and player
 
             // ensure valid game state
-            ensure!(self.status == GameStatus::OnGoing, GameError::GameNotStarted);
+            ensure!(
+                self.status == GameStatus::OnGoing,
+                GameError::GameNotStarted
+            );
             // ensure current round exists
             ensure!(self.current_round.is_some(), GameError::NoCurrentRound);
 
             let value = Self::env().transferred_value();
             // NOTE: the issue of contribution amount privacy is discussed in the `play_round` method implementation.
             // It's the reason we require the max_round_contribution amount here
-            ensure!(value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)), GameError::InvalidRoundContribution);
+            ensure!(
+                value >= Balance::from(self.configs.max_round_contribution.unwrap_or(0)),
+                GameError::InvalidRoundContribution
+            );
 
             let caller = as_player.clone();
             let mut current_round = self.current_round.clone().unwrap();
 
             // ensure that the player hasn't already made a commitment
             ensure!(
-                current_round.player_commits.iter().find(|(player, _)| player == &caller).is_none(),
+                current_round
+                    .player_commits
+                    .iter()
+                    .find(|(player, _)| player == &caller)
+                    .is_none(),
                 GameError::PlayerAlreadyCommitted
             );
 
             // store the commit
-            current_round.player_commits.push((
-                as_player.clone(),
-                commitment,
-            ));
+            current_round
+                .player_commits
+                .push((as_player.clone(), commitment));
 
             // keep track of round contribution(s)
-            current_round.player_contributions.push((
-                as_player.clone(),
-                value,
-            ));
+            current_round
+                .player_contributions
+                .push((as_player.clone(), value));
 
             current_round.total_contribution += value;
 
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
-                ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), AllPlayersCommitted {
-                    game_address: Self::env().account_id(),
-                    commits: current_round.player_commits.clone(),
-                });
+                ink::codegen::EmitEvent::<Dictator>::emit_event(
+                    self.env(),
+                    AllPlayersCommitted {
+                        game_address: Self::env().account_id(),
+                        commits: current_round.player_commits.clone(),
+                    },
+                );
             }
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), RoundCommitPlayed {
-                game_address: Self::env().account_id(),
-                player: caller,
-                commitment,
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                RoundCommitPlayed {
+                    game_address: Self::env().account_id(),
+                    player: caller,
+                    commitment,
+                },
+            );
 
             self.current_round = Some(current_round);
 
@@ -571,13 +634,19 @@ mod dictator {
         #[ink(message, payable)]
         fn fund_contract(&mut self) -> Result<(), GameError> {
             let value = self.env().transferred_value();
-            ensure!(value > self.configs.min_round_contribution.unwrap(), GameError::EndowmentNotEnough);
+            ensure!(
+                value > self.configs.min_round_contribution.unwrap(),
+                GameError::EndowmentNotEnough
+            );
 
-            ink::codegen::EmitEvent::<Dictator>::emit_event(self.env(), GameEndowmentDeposited {
-                creator: self.env().caller(),
-                game_address: self.env().account_id(),
-                endowment: self.env().transferred_value()
-            });
+            ink::codegen::EmitEvent::<Dictator>::emit_event(
+                self.env(),
+                GameEndowmentDeposited {
+                    creator: self.env().caller(),
+                    game_address: self.env().account_id(),
+                    endowment: self.env().transferred_value(),
+                },
+            );
 
             Ok(())
         }

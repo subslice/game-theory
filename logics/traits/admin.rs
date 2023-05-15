@@ -1,6 +1,6 @@
 use super::types::GameError;
-use openbrush::traits::AccountId;
 use ink::primitives::Hash;
+use openbrush::traits::AccountId;
 
 /// Defines a set of method signatures for admin control of the game.
 ///
@@ -19,7 +19,11 @@ pub trait GameAdmin {
 
     /// Make a commitment to a round on behalf of a player.
     #[ink(message)]
-    fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError>;
+    fn play_round_as_player(
+        &mut self,
+        as_player: AccountId,
+        commitment: Hash,
+    ) -> Result<(), GameError>;
 
     /// Reveal a commitment on behalf of a player.
     #[ink(message)]
