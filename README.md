@@ -97,6 +97,11 @@ Use the following command to a build a contract:
 cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Cargo.toml
 ```
 
+or this to build all of them:
+```sh
+sh build-all.sh
+```
+
 ### Deploying Contracts
 
 [//]: # (TODO: write)

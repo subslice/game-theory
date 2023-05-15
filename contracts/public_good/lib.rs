@@ -516,7 +516,7 @@ pub mod public_good {
     }
 
     /// An implementation of Admin-level functions for the `PublicGood` contract.
-    impl GameAdmin for PublicGood {
+    impl Admin for PublicGood {
         #[ink(message, payable)]
         #[modifiers(only_role(CREATOR))]
         fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {

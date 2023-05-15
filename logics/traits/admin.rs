@@ -6,7 +6,7 @@ use openbrush::traits::AccountId;
 ///
 /// One example is being able to add players into the game directly without restriction.
 #[openbrush::trait_definition]
-pub trait GameAdmin {
+pub trait Admin {
     /// Adds a player into the game on their behalf.
     ///
     /// Any amount paid into this method call is sent to the player being added to the game.

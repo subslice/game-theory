@@ -502,7 +502,7 @@ mod dictator {
         }
     }
 
-    impl GameAdmin for Dictator {
+    impl Admin for Dictator {
         #[ink(message, payable)]
         #[modifiers(only_role(CREATOR))]
         fn add_player_to_game(&mut self, player: AccountId) -> Result<u8, GameError> {
