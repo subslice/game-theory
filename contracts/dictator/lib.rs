@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use self::dictator::{Dictator, DictatorRef};
+
 #[openbrush::contract(env = CustomEnvironment)]
 mod dictator {
     use game_theory::ensure;
