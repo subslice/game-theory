@@ -1,5 +1,7 @@
 # Game Theory with ink!
 
+An ink! tool for playing and researching games based on the field of "Game Theory" by using smart contracts.
+
 > Submission for the Encode x Polkadot Hackathon 2023
 
 This repo contains an implementation of some [games within the Game Theory field](https://en.wikipedia.org/wiki/List_of_games_in_game_theory). 
@@ -7,11 +9,17 @@ This repo contains an implementation of some [games within the Game Theory field
 One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
 explaining the game's logic.
 
-Only a couple of games are currently implemented, deployable and playable from the list linked above, however, the implementation
-is done such that it follows a standardized set of traits (see `./logics/traits` directory) defined within the reusable (across contracts) code
-such as type and trait definitions. More details in the [Project Components section](#project-components).
+---
 
-Taking such an approach means more games can be easily added to extend this project beyond the current hackathon submission.
+## Explanation & Demo Video
+
+[![Youtube Video](https://img.youtube.com/vi/7MqKyjXFkHQ/0.jpg)](https://www.youtube.com/watch?v=7MqKyjXFkHQ)
+
+> Only a couple of games are currently implemented, deployable (tested on Shibuya) and playable from the list linked above, however, the implementation
+is done such that it follows a standardized set of traits (see `./logics/traits` directory) defined within the reusable (across contracts) code
+such as type and trait definitions. More details in the [Project Components section](#architecture--components).
+> 
+> Taking such an approach means more games can be easily added to extend this project beyond the current hackathon submission.
 
 ---
 
