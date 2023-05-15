@@ -1,6 +1,6 @@
-use openbrush::traits::AccountId;
-use ink::prelude::vec::Vec;
 use super::types::*;
+use ink::prelude::vec::Vec;
+use openbrush::traits::AccountId;
 
 /// Defines the basic game lifecycle methods.
 #[openbrush::trait_definition]

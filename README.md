@@ -112,6 +112,11 @@ Use the following command to a build a contract:
 cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Cargo.toml
 ```
 
+or this to build all of them:
+```sh
+sh build-all.sh
+```
+
 ### Deploying Contracts
 
 Contracts can be deployed on any Substrate chain which supports smart contract functionality via !ink, however, some games' contracts

@@ -5,25 +5,21 @@ pub use self::rock_paper_scissors::{RockPaperScissors, RockPaperScissorsRef};
 // noinspection ALL
 #[openbrush::contract]
 pub mod rock_paper_scissors {
-    use game_theory::logics::traits::types::{GameRound, GameStatus, GameConfigs, GameError, RoundStatus};
-    use game_theory::logics::traits::lifecycle::*;
     use game_theory::logics::traits::basic::*;
-    use ink::prelude::vec::Vec;
+    use game_theory::logics::traits::lifecycle::*;
+    use game_theory::logics::traits::types::{
+        GameConfigs, GameError, GameRound, GameStatus, RoundStatus,
+    };
+    use ink::codegen::EmitEvent;
     use ink::env::hash::{Blake2x256, HashOutput};
-    use openbrush::modifiers;
-    use openbrush::traits::{DefaultEnv, Storage};
+    use ink::prelude::vec::Vec;
     use openbrush::contracts::access_control::extensions::enumerable::*;
     use openbrush::contracts::access_control::only_role;
-    use ink::codegen::EmitEvent;
+    use openbrush::modifiers;
+    use openbrush::traits::{DefaultEnv, Storage};
 
     /// Access control roles
     const CREATOR: RoleType = ink::selector_id!("CREATOR");
-
-    enum Choice {
-        Rock,     // 0
-        Paper,    // 1
-        Scissors, // 2
-    }
 
     #[ink(event)]
     pub struct GameCreated {
@@ -72,7 +68,7 @@ pub mod rock_paper_scissors {
         #[ink(topic)]
         game_address: AccountId,
         #[ink(topic)]
-        commits: Vec<(AccountId, Hash)>
+        commits: Vec<(AccountId, Hash)>,
     }
 
     #[ink(event)]
@@ -133,7 +129,9 @@ pub mod rock_paper_scissors {
             let caller = <Self as DefaultEnv>::env().caller();
 
             instance._init_with_admin(caller);
-            instance.grant_role(CREATOR, caller).expect("Should grant CREATOR role");
+            instance
+                .grant_role(CREATOR, caller)
+                .expect("Should grant CREATOR role");
 
             instance
         }
@@ -176,9 +174,8 @@ pub mod rock_paper_scissors {
 
             Ok(())
         }
-
-        // testing purposes only
-        // this operation should be done by the UI/frontend
+        
+        // TODO: this is would be on the front end
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
@@ -220,7 +217,7 @@ pub mod rock_paper_scissors {
             }
 
             if self.players.contains(&player) {
-                return Err(GameError::PlayerAlreadyJoined)
+                return Err(GameError::PlayerAlreadyJoined);
             };
 
             if let Some(fees) = self.configs.join_fee {
@@ -289,12 +286,13 @@ pub mod rock_paper_scissors {
 
             let caller = Self::env().caller();
 
-            if let Some(p) = current_round
+            if let Some(_p) = current_round
                 .player_commits
                 .iter()
-                .find(|(c, _)| c == &caller) {
-                    return Err(GameError::PlayerAlreadyCommitted);
-                }
+                .find(|(c, _)| c == &caller)
+            {
+                return Err(GameError::PlayerAlreadyCommitted);
+            }
 
             if let Some(min_round_contribution) = self.configs.min_round_contribution {
                 if Self::env().transferred_value() < min_round_contribution {
@@ -328,7 +326,7 @@ pub mod rock_paper_scissors {
         #[ink(message, payable)]
         fn reveal_round(&mut self, reveal: (u128, u128)) -> Result<(), GameError> {
             if reveal.0 > 2 {
-                return Err(GameError::InvalidChoice)
+                return Err(GameError::InvalidChoice);
             }
 
             let caller = Self::env().caller();
@@ -383,12 +381,14 @@ pub mod rock_paper_scissors {
 
             match score {
                 1 => {
-                    Self::env().transfer(player1.0, rewards)
+                    Self::env()
+                        .transfer(player1.0, rewards)
                         .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player1.0, rewards))
                 }
                 2 => {
-                    Self::env().transfer(player2.0, rewards)
+                    Self::env()
+                        .transfer(player2.0, rewards)
                         .map_err(|_| GameError::FailedToIssueWinnerRewards)?;
                     winners.push((player2.0, rewards))
                 }
@@ -411,12 +411,6 @@ pub mod rock_paper_scissors {
             });
 
             Ok(())
-        }
-
-        #[ink(message, payable)]
-        fn force_complete_round(&mut self) -> Result<(), GameError> {
-            // admin level functions necessary
-            todo!("implement")
         }
 
         #[ink(message, payable)]
@@ -511,7 +505,10 @@ pub mod rock_paper_scissors {
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.alice);
             // can join when the caller is alice joining as alice (own account)
             assert!(rock_paper_scissors.join(accounts.alice).is_ok());
-            assert_eq!(rock_paper_scissors.join(accounts.alice), Err(GameError::PlayerAlreadyJoined));
+            assert_eq!(
+                rock_paper_scissors.join(accounts.alice),
+                Err(GameError::PlayerAlreadyJoined)
+            );
         }
 
         #[ink::test]
@@ -546,10 +543,7 @@ pub mod rock_paper_scissors {
             let mut commitment = <Blake2x256 as HashOutput>::Type::default();
             ink_env::hash_bytes::<Blake2x256>(&alice_data, &mut commitment);
             ink::env::test::set_value_transferred::<ink::env::DefaultEnvironment>(
-                rock_paper_scissors
-                    .configs
-                    .min_round_contribution
-                    .unwrap(),
+                rock_paper_scissors.configs.min_round_contribution.unwrap(),
             );
 
             let result = rock_paper_scissors.play_round(commitment.into());
@@ -568,7 +562,10 @@ pub mod rock_paper_scissors {
             // attempt to emit the start event as bob
             // expect failure
             ink::env::test::set_caller::<ink::env::DefaultEnvironment>(accounts.bob);
-            matches!(game.emit_game_started(), Err(GameError::AccessControlError(_)));
+            matches!(
+                game.emit_game_started(),
+                Err(GameError::AccessControlError(_))
+            );
 
             // attempt to emit the stat event as alice
             // expect success

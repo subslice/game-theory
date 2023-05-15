@@ -2,7 +2,7 @@
 
 set -eu
 
-cargo +stable contract build --manifest-path contracts/game_public_good/Cargo.toml
-cargo +stable contract build --manifest-path contracts/game_rock_paper_scissors/Cargo.toml
-cargo +stable contract build --manifest-path contracts/games_router/Cargo.toml
-cargo +stable contract build
+cargo contract build --release --manifest-path contracts/router/Cargo.toml
+cargo contract build --release --manifest-path contracts/public_good/Cargo.toml
+cargo contract build --release --manifest-path contracts/rock_paper_scissors/Cargo.toml
+cargo contract build --release --manifest-path contracts/dictator/Cargo.toml

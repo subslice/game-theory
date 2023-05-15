@@ -36,6 +36,3 @@ std = [
 ]
 ink-as-dependency = []
 e2e-tests = []
-
-[toolchain]
-channel = "nightly-2023-02-07"

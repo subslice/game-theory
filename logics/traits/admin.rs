@@ -1,12 +1,12 @@
 use super::types::GameError;
-use openbrush::traits::AccountId;
 use ink::primitives::Hash;
+use openbrush::traits::AccountId;
 
 /// Defines a set of method signatures for admin control of the game.
 ///
 /// One example is being able to add players into the game directly without restriction.
 #[openbrush::trait_definition]
-pub trait GameAdmin {
+pub trait Admin {
     /// Adds a player into the game on their behalf.
     ///
     /// Any amount paid into this method call is sent to the player being added to the game.
@@ -19,7 +19,11 @@ pub trait GameAdmin {
 
     /// Make a commitment to a round on behalf of a player.
     #[ink(message)]
-    fn play_round_as_player(&mut self, as_player: AccountId, commitment: Hash) -> Result<(), GameError>;
+    fn play_round_as_player(
+        &mut self,
+        as_player: AccountId,
+        commitment: Hash,
+    ) -> Result<(), GameError>;
 
     /// Reveal a commitment on behalf of a player.
     #[ink(message)]
@@ -38,5 +42,5 @@ pub trait GameAdmin {
 
     /// A general helper method to put funds into the game's contract as the deployer/admin.
     #[ink(message, payable)]
-    fn fund_contract(&self) -> Result<(), GameError>;
+    fn fund_contract(&mut self) -> Result<(), GameError>;
 }

@@ -94,7 +94,7 @@ mod router {
         /// A methods that adds a game and instantiates its contract.
         #[ink(message, payable)]
         pub fn new_game(&mut self, which: Game) -> Result<(), RouterError> {
-            let game_hash = self.get_game_hash(which)?;
+            let _game_hash = self.get_game_hash(which)?;
 
             self.games_count += 1;
 
