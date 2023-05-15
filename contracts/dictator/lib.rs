@@ -449,12 +449,6 @@ mod dictator {
         }
 
         #[ink(message, payable)]
-        fn force_complete_round(&mut self) -> Result<(), GameError> {
-            // admin level functions necessary
-            todo!("implement")
-        }
-
-        #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
             let current_round = self.current_round.as_mut().unwrap();
 

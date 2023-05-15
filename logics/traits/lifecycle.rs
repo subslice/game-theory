@@ -30,13 +30,6 @@ pub trait Lifecycle {
     #[ink(message, payable)]
     fn complete_round(&mut self) -> Result<(), GameError>;
 
-    /// succeeds only if the caller has already made a commitment
-    /// succeeds only if the round expired (passed the block timeout in config // should default to 10 or 20 blocks if None)
-    /// a penalty is incurred by the players who did not play (joining fee is not returned)
-    /// emits a relevant event
-    #[ink(message, payable)]
-    fn force_complete_round(&mut self) -> Result<(), GameError>;
-
     /// closes the game and terminates the contract
     /// can only be done once all the rounds have been played
     /// releases the joining fees (unless penalties are incurred)

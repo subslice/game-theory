@@ -470,11 +470,6 @@ pub mod public_good {
         }
 
         #[ink(message, payable)]
-        fn force_complete_round(&mut self) -> Result<(), GameError> {
-            todo!("implement")
-        }
-
-        #[ink(message, payable)]
         fn end_game(&mut self) -> Result<(), GameError> {
             // ensure the game is in ended state
             ensure!(
