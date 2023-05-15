@@ -174,7 +174,7 @@ pub mod rock_paper_scissors {
 
             Ok(())
         }
-        
+
         // TODO: this is would be on the front end
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {

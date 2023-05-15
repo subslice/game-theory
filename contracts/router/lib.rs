@@ -2,9 +2,10 @@
 
 #[openbrush::contract]
 mod router {
-    // use public_good::PublicGoodRef;
-    // use rock_paper_scissors::RockPaperScissorsRef;
+    use dictator::DictatorRef;
     use ink::storage::Mapping;
+    use public_good::PublicGoodRef;
+    use rock_paper_scissors::RockPaperScissorsRef;
 
     /// Game types.
     #[derive(scale::Encode, scale::Decode, PartialEq, Eq, Clone, Copy, Debug)]
@@ -15,6 +16,7 @@ mod router {
     pub enum Game {
         RockPaperScissors,
         PublicGood,
+        Dictator,
     }
 
     /// Router errors.
@@ -32,21 +34,6 @@ mod router {
         game_hashes: Mapping<Game, Hash>,
         games_count: u32,
     }
-
-    /**
-     *
-     * IMPLEMENTATION NOTES:
-     *
-     * 1. Code in this contract must not contain enums representing game types.
-     *    Instead, it should have a storage of the following:
-     *      - Vector of allowed Contract Hashes (can only add to it by this contract's owner)
-     *      - HashMap of <Contract Hash, Vec<Contract Address>>.
-     *
-     * 2. Code in this contract must not contain any game-specific logic.
-     *
-     * 3. Code in this contract must enable instantiation of any game contract using the contract's hash.
-     *
-     */
 
     impl Router {
         /// Helper method to ensure that the caller is the contract owner.
@@ -94,32 +81,37 @@ mod router {
         /// A methods that adds a game and instantiates its contract.
         #[ink(message, payable)]
         pub fn new_game(&mut self, which: Game) -> Result<(), RouterError> {
-            let _game_hash = self.get_game_hash(which)?;
+            let game_hash = self.get_game_hash(which)?;
 
             self.games_count += 1;
 
-            // match which {
-            //     Game::RockPaperScissors => {
-            //         let game = RockPaperScissorsRef::default()
-            //             .code_hash(game_hash)
-            //             .endowment(self.env().transferred_value())
-            //             .gas_limit(0)
-            //             .salt_bytes(self.games_count.to_le_bytes())
-            //             .instantiate();
+            match which {
+                Game::RockPaperScissors => {
+                    RockPaperScissorsRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+                }
+                Game::PublicGood => {
+                    PublicGoodRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+                }
+                Game::Dictator => {
+                    DictatorRef::default()
+                        .code_hash(game_hash)
+                        .endowment(self.env().transferred_value())
+                        .gas_limit(0)
+                        .salt_bytes(self.games_count.to_le_bytes())
+                        .instantiate();
+                }
+            }
 
-            //         Ok(())
-            //     }
-            //     Game::PublicGood => {
-            //         let game = PublicGoodRef::default()
-            //             .code_hash(game_hash)
-            //             .endowment(self.env().transferred_value())
-            //             .gas_limit(0)
-            //             .salt_bytes(self.games_count.to_le_bytes())
-            //             .instantiate();
-
-            //         Ok(())
-            //     }
-            // }
             Ok(())
         }
     }
