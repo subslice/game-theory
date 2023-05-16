@@ -9,6 +9,12 @@ This repo contains an implementation of some [games within the Game Theory field
 One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
 explaining the game's logic.
 
+### Current deployments on Shibuya Testnet
+- `router`: [b5Wz2d5qnav1V5W3cMtqycnsyqBS18rbJiS1kisSbYj6QTD](https://shibuya.subscan.io/account/b5Wz2d5qnav1V5W3cMtqycnsyqBS18rbJiS1kisSbYj6QTD)
+- `public good`: [WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG](https://shibuya.subscan.io/account/WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG)
+- `rock paper scissors`: [XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm](https://shibuya.subscan.io/account/XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm)
+- `dictator`: randomness extension not currently supported on Shibuya.
+
 ---
 
 ## Explanation & Demo Video
