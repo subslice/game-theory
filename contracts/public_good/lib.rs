@@ -199,7 +199,7 @@ pub mod public_good {
             Ok(())
         }
 
-        // TODO: this is would be on the front end
+        // TODO: move to UI code, remove from all contracts
         #[ink(message)]
         pub fn hash_commitment(&self, input: u128, nonce: u128) -> Result<Hash, GameError> {
             let data = [input.to_le_bytes(), nonce.to_le_bytes()].concat();
@@ -592,6 +592,13 @@ pub mod public_good {
 
             current_round.total_contribution += value;
 
+            // emit that the current player has made a commitment
+            Self::env().emit_event(RoundCommitPlayed {
+                game_address: Self::env().account_id(),
+                player: caller,
+                commitment,
+            });
+
             // check if all players have committed
             if current_round.player_commits.len() == self.players.len() {
                 Self::env().emit_event(AllPlayersCommitted {
@@ -600,11 +607,6 @@ pub mod public_good {
                 });
             }
 
-            Self::env().emit_event(RoundCommitPlayed {
-                game_address: Self::env().account_id(),
-                player: caller,
-                commitment,
-            });
             Ok(())
         }
 
@@ -628,6 +630,8 @@ pub mod public_good {
 
         #[ink(message, payable)]
         fn fund_contract(&mut self) -> Result<(), GameError> {
+            // TODO: decide if checking amount is required, perhaps a min. amount based on
+            //       rounds and the max contribution amount
             // ensure!(self.env().transferred_value() > 0);
 
             Ok(())

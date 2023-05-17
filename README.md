@@ -9,8 +9,7 @@ This repo contains an implementation of some [games within the Game Theory field
 One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
 explaining the game's logic.
 
-### Current deployments on Shibuya Testnet
-- `router`: [b5Wz2d5qnav1V5W3cMtqycnsyqBS18rbJiS1kisSbYj6QTD](https://shibuya.subscan.io/account/b5Wz2d5qnav1V5W3cMtqycnsyqBS18rbJiS1kisSbYj6QTD)
+### Example deployments on Shibuya Testnet
 - `public good`: [WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG](https://shibuya.subscan.io/account/WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG)
 - `rock paper scissors`: [XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm](https://shibuya.subscan.io/account/XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm)
 - `dictator`: randomness extension not currently supported on Shibuya.
@@ -58,22 +57,23 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ![](./images/architecture-2.png)
 
-1. **Traits**: the `traits` crate defines the behaviours which every game must provide as well as common types.
+1. ✅ **Traits**: the `traits` crate defines the behaviours which every game must provide as well as common types.
    * There 3 `trait-defintion`s which specify the methods needed by each game. `Lifecycle` (game play methods),
      `Basic` (simple getters/setters) and `Admin` (admin-level methods). See [traits](./logics/traits) module.
    * Common types include `GameError`, `GameConfigs` and other relevant data types. See [types](./logics/traits/types.rs) module.
 
-2. **Games**: the games are !ink smart contracts which implement a subset or all the traits mentioned above.
+2. ✅ **Games**: the games are !ink smart contracts which implement a subset or all the traits mentioned above.
    * Each __instance__ of a game contract represents a single game play.
    * To play the game again, a new __instance__ must be launched.
    * The contract should terminate once the game is completed and the final round's winnings are issued.
 
-3. [post hackathon] **Router**: the `games_router` create defines a generic contract which the UI will invoke when launching
+3. ⌛️**Router**: the `games_router` contract defines a games factory which the UI will invoke when launching
    new games as well as when having high-level interactions with the games' contracts.
    * It does not contain game specific code.
    * It is extensible to allow future games to be added.
+   * It mainly just stores the code hashes of available and deployed games.
 
-4. [post hackathon] **Typescript/React UI**
+4. ⌛️**Typescript/React UI**
    a. Add event indexing and lookup
    b. Add Admin / Analytics dashboard
    c. Add ability to connect using a wallet (see [use-inkathon](https://github.com/scio-labs/use-inkathon))
@@ -143,10 +143,10 @@ from smart contracts.
 
 ## Next Steps
 
-- [ ] Create our own proper UI for Game Theory experiments
+- [ ] Create a React/TS User Interface to create, manage and deploy games
 - [ ] Use shared events: https://github.com/subslice/game-theory/issues/33
+- [ ] Enable Upgrade-ability: https://github.com/subslice/game-theory/issues/34
 - [ ] Move completely to OpenBrush
-- [ ] Enable Upgradeability: https://github.com/subslice/game-theory/issues/34
 - [ ] Use Mappings instead of Vector of Tuple: https://github.com/subslice/game-theory/issues/10
 
 ---
