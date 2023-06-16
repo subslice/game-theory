@@ -18,12 +18,6 @@ ink_e2e = "4.1"
 [lib]
 path = "lib.rs"
 name = "public_good"
-crate-type = [
-	# Used for normal contract Wasm blobs.
-	"cdylib",
-    # Used for contract Wasm blobs that are to be linked against.
-    "rlib",
-]
 
 [features]
 default = ["std"]
