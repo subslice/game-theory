@@ -140,7 +140,7 @@ from smart contracts.
 
 ## Next Steps
 
-- [ ] Create UI for Game Theory experiments
+- [ ] Create UI for Game Theory experiments: https://github.com/subslice/game-theory/issues/44
 - [ ] Use shared events: https://github.com/subslice/game-theory/issues/33
 - [ ] Move completely to OpenBrush
 - [ ] Enable Upgradeability: https://github.com/subslice/game-theory/issues/34
