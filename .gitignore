@@ -14,3 +14,6 @@ Cargo.lock
 /ts_contracts/
 .fleet
 .idea
+/typechain
+/typedContracts
+/bin

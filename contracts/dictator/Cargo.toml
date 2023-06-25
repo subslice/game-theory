@@ -5,8 +5,8 @@ authors = ["[your_name] <[your_email]>"]
 edition = "2021"
 
 [dependencies]
-ink = { version = "4.0.1", default-features = false }
-ink_env = { version = "4.2.0", default-features = false }
+ink = { version = "4.2.1", default-features = false }
+ink_env = { version = "4.2.1", default-features = false }
 
 scale = { package = "parity-scale-codec", version = "3", default-features = false, features = ["derive"] }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
@@ -14,7 +14,7 @@ openbrush = { git = "https://github.com/727-Ventures/openbrush-contracts", versi
 game-theory = { path = "../../", default-features = false }
 
 [dev-dependencies]
-ink_e2e = "4.0.1"
+ink_e2e = "4.2.1"
 
 [lib]
 path = "lib.rs"
