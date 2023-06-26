@@ -1,9 +1,10 @@
 import { expect, use } from "chai";
 import chaiAsPromised from "chai-as-promised";
-import PublicGoodFactory from "../../typedContracts/public_good/constructors/public_good";
-import PublicGood from "../../typedContracts/public_good/contracts/public_good";
+import PublicGoodFactory from "../typedContracts/public_good/constructors/public_good";
+import PublicGood from "../typedContracts/public_good/contracts/public_good";
 import { ApiPromise, WsProvider, Keyring } from "@polkadot/api";
 import { KeyringPair } from "@polkadot/keyring/types";
+import { GameConfigs } from '../typedContracts/public_good/types-arguments/public_good';
 
 use(chaiAsPromised);
 
@@ -13,20 +14,41 @@ const wsProvider = new WsProvider("ws://127.0.0.1:9944");
 const keyring = new Keyring({ type: "sr25519" });
 
 describe("flipper test", () => {
+  const DEFAULT_MAX_PLAYERS = 2;
+  const DEFAULT_MIN_PLAYERS = 2;
+  const ACTORS = ['//Bob', '//Alice', '//Charlie'];
+
   let factory: PublicGoodFactory;
   let api: ApiPromise;
   let deployer: KeyringPair;
   
   let contract: PublicGood;
 
-  before(async function setup(): Promise<void> {
+  // helpers
+  const getSigner = (path: string) => keyring.addFromUri(path);
+  const getSignerFromSecret = (secret: string) => keyring.addFromMnemonic(secret);
+
+  beforeEach(async function setup(): Promise<void> {
     api = await ApiPromise.create({ provider: wsProvider });
     deployer = keyring.addFromUri("//Alice");
 
     factory = new PublicGoodFactory(api, deployer);
 
-    contract = new Flipper(
-      (await factory.default()).address,
+    const configs: GameConfigs = {
+      maxPlayers: DEFAULT_MAX_PLAYERS,
+      minPlayers: DEFAULT_MIN_PLAYERS,
+      minRoundContribution: 1_000,
+      maxRoundContribution: 100_000,
+      roundRewardMultiplier: 12,
+      postRoundActions: false,
+      roundTimeout: 10,
+      maxRounds: 3,
+      joinFee: 10_000,
+      isRoundsBased: false,
+    }
+
+    contract = new PublicGood(
+      (await factory.new(configs)).address,
       deployer,
       api
     );
@@ -36,17 +58,39 @@ describe("flipper test", () => {
     await api.disconnect();
   });
 
-//   it("Sets the initial state", async () => {
-//     expect((await contract.query.get()).value.ok).to.equal(initialState);
-//   });
+  it("Should start with a 'Ready' state", async () => {
+    let status = await contract.query.getStatus();
+    expect(status.value.ok).to.equal('Ready');
+  });
 
-//   it("Can flip the state", async () => {
-//     const { gasRequired } = await contract.withSigner(deployer).query.flip();
+  it("Players can join", async () => {
+    const signer = keyring.addFromUri(ACTORS[0]);
+    await contract.withSigner(signer).tx.join(signer.address, {
+      value: 10_000,
+    });
 
-//     await contract.withSigner(deployer).tx.flip({
-//       gasLimit: gasRequired,
-//     });
+    // the player that just joined should be represented in the contract state
+    expect((await contract.query.getPlayers()).value.ok).to.include(signer.address);
+  });
 
-//     await expect((await contract.query.get()).value.ok).to.be.equal(!initialState);
-//   });
+  it("Should check max players that can join", async () => {
+    for (let i = DEFAULT_MAX_PLAYERS; i > 0; i--) {
+      const signer = getSignerFromSecret(ACTORS[i - 1]);
+      await contract.withSigner(signer).tx.join(signer.address, {
+        value: 10_000,
+      });
+    }
+
+    console.log('Players', (await contract.query.getPlayers()).value)
+
+    // the player that just joined should be represented in the contract state
+    let signer = getSignerFromSecret('//Eve');
+    expect(
+      contract.withSigner(signer).tx.join(signer.address, {
+        value: 10_000,
+      })
+    ).to.throw;
+
+    // TODO: check actual error
+  });
 });

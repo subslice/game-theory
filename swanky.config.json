@@ -16,6 +16,12 @@
       "mnemonic": "//Bob",
       "isDev": true,
       "address": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+    },
+    {
+      "mnemonic": "//Charlie",
+      "isDev": true,
+      "alias": "charlie",
+      "address": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
     }
   ],
   "networks": {
