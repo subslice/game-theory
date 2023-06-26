@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "run-node": "swanky node start",
-    "test": "mocha --config .mocharc.json"
+    "test": "mocha --config .mocharc.json",
+    "swanky": "npx @astar-network/swanky-cli"
   },
   "engines": {
     "node": ">=18.0.0"

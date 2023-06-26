@@ -111,6 +111,16 @@ or
 
 alternatively `cd` into that contract's directory and run `cargo test` within the package code.
 
+### E2E Tests
+
+E2E tests are located in the `./tests` directory. They are written in Typescript and use Swanky CLI to run.
+
+Run e2e tests by doing the following steps:
+
+1. In a terminal window, run Swanky Node with `yarn swanky node start`
+2. In another terminal window, run the tests with `yarn test`
+   * You may need to compile each contract first with `swanky contract compile CONTRACT_NAME --release`
+
 ### Building Contracts
 
 Since this is a workspace, each contract currently needs to be built independently into WASM / ABI.
@@ -124,6 +134,22 @@ cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Ca
 or this to build all of them:
 ```sh
 sh build-all.sh
+```
+
+### Building with Swanky CLI
+
+One of the benefits of using Swanky CLI is you get types generated for you automatically. This is useful for the UI and E2E tests.
+
+Run the following command to build a contract with Swanky CLI:
+
+```sh
+swanky contract compile CONTRACT_NAME --release
+```
+
+For example, to compile the `public_good` game:
+
+```sh
+swanky contract compile public_good --release
 ```
 
 ### Deploying Contracts
