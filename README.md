@@ -89,7 +89,7 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ## Getting Started
 
-> Note: please use the `nightly-2023-02-07` cargo toolchain channel. See [Cargo.toml](./Cargo.toml)
+> Note: the cargo toolchain channel specified in [`rust-toolchain.toml`](./rust-toolchain.toml) file.
 
 ### Testing
 
@@ -131,10 +131,20 @@ Use the following command to a build a contract:
 cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Cargo.toml
 ```
 
+> This build command is the only thing required to do Ink! testing (unit or e2e), however, using a Node
+> such as Swanky Node (or any other Substrate Node with `pallet-contracts`) requires using Swanky CLI.
+
 or this to build all of them:
 ```sh
 sh build-all.sh
 ```
+
+> Note: using the `build-all` script will require NodeJS to be installed.
+> [NVM](https://github.com/nvm-sh/nvm) is recommended for managing NodeJS versions.
+> 
+> This script uses `yarn` to install Swanky CLI and Swanky Node (deps). 
+> And runs the `compile` command for each contract, this builds the contracts using `cargo` and generates
+> Typescript types for the UI and (integration) E2E tests against a running instance of Swanky Node.
 
 ### Building with Swanky CLI
 

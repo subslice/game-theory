@@ -73,7 +73,7 @@ describe("flipper test", () => {
     expect((await contract.query.getPlayers()).value.ok).to.include(signer.address);
   });
 
-  it("Should check max players that can join", async () => {
+  it("Should not allow more than `max_players` to join", async () => {
     for (let i = DEFAULT_MAX_PLAYERS; i > 0; i--) {
       const signer = getSignerFromSecret(ACTORS[i - 1]);
       await contract.withSigner(signer).tx.join(signer.address, {
@@ -90,6 +90,34 @@ describe("flipper test", () => {
         value: 10_000,
       })
     ).to.throw;
+
+    // TODO: check actual error
+  });
+
+  it("Should be able to start the game", async () => {
+    // Add 2 players (minimum) to start the game 
+    const BOB = getSigner(ACTORS[0]);
+    await contract.withSigner(BOB).tx.join(BOB.address, {
+      value: 10_000,
+    });
+
+    const ALICE = getSigner(ACTORS[1]);
+    await contract.withSigner(ALICE).tx.join(ALICE.address, {
+      value: 10_000,
+    });
+
+    // Start the game successfully
+    await contract.withSigner(BOB).tx.startGame();
+  });
+  
+  it("Should not start the game if `min_players` are not reached", async () => {
+    const BOB = getSigner(ACTORS[0]);
+    await contract.withSigner(BOB).tx.join(BOB.address, {
+      value: 10_000,
+    });
+
+    // Start the game
+    expect(contract.withSigner(BOB).tx.startGame()).to.throw;
 
     // TODO: check actual error
   });
