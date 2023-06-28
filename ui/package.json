@@ -10,9 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@chakra-ui/react": "^2.7.1",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
     "@polkadot/api": "^10.9.1",
+    "framer-motion": "^10.12.17",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "useink": "^1.10.0"
   },
   "devDependencies": {
     "@types/react": "^18.0.37",

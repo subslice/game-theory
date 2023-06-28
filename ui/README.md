@@ -1,5 +1,7 @@
 
-## Game Slice UI
+## Game Slice
+
+#### aka. Game Theory UI
 
 This is a typescript + React sub-project that handles building the UI (web for now) components necessary to
 interact with the deployed Ink! smart contracts (on Astar/Shibuya/Swanky).
