@@ -13,7 +13,7 @@ const wsProvider = new WsProvider("ws://127.0.0.1:9944");
 // Create a keyring instance
 const keyring = new Keyring({ type: "sr25519" });
 
-describe("flipper test", () => {
+describe("PublicGood E2E Tests", () => {
   const DEFAULT_MAX_PLAYERS = 2;
   const DEFAULT_MIN_PLAYERS = 2;
   const ACTORS = ['//Bob', '//Alice', '//Charlie'];
