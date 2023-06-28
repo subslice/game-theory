@@ -5,10 +5,10 @@
  * It also handles the logic for connecting and disconnecting web3 wallets.
  */
 
-import { 
-    Box, Button, Flex, Heading, Modal, ModalBody, ModalCloseButton, 
-    ModalContent, ModalFooter, ModalHeader, 
-    ModalOverlay, Spacer, Text, useDisclosure 
+import {
+    Box, Button, Flex, Heading, Menu, MenuButton, MenuItem, MenuList, Modal, ModalBody, ModalCloseButton,
+    ModalContent, ModalFooter, ModalHeader,
+    ModalOverlay, Spacer, Text, useDisclosure
 } from '@chakra-ui/react'
 import { useWallet, useAllWallets } from 'useink'
 
@@ -87,7 +87,7 @@ export default function Navbar() {
                 </ModalHeader>
                 <ModalCloseButton />
                 <ModalBody>
-                    { _renderWallets() }
+                    {_renderWallets()}
                 </ModalBody>
                 <ModalFooter>
                     <Button colorScheme='purple' mr={3} onClick={onPickerClose}>
@@ -98,16 +98,41 @@ export default function Navbar() {
         </Modal>
     )
 
+    const _renderNetworkSelect = () => {
+        return (
+            <Menu>
+                <MenuButton
+                    px={4}
+                    py={2}
+                    transition='all 0.2s'
+                    borderRadius='md'
+                    borderWidth='1px'
+                    textColor={'white'}
+                >
+                    Network: Local
+                </MenuButton>
+                <MenuList>
+                    <MenuItem>Local</MenuItem>
+                    <MenuItem>Shibuya</MenuItem>
+                    <MenuItem>Astar Mainnet</MenuItem>
+                </MenuList>
+            </Menu>
+        )
+    }
+
     return (
         <Box
             style={{ padding: '10px' }}
             bgColor={'purple.700'}
         >
             <Flex>
-                <Heading color={'white'}>
+                <Heading size={'lg'} color={'white'}>
                     Game Slice
                 </Heading>
                 <Spacer />
+                <Box marginLeft={'10px'} marginRight={'10px'}>
+                    {_renderNetworkSelect()}
+                </Box>
                 {
                     isConnected && (
                         <Box>
@@ -117,7 +142,7 @@ export default function Navbar() {
                             >
                                 Disconnect &nbsp;
                                 <strong>
-                                    { account ? `${ _getAbbreviatedAccountAddress(account.address) }` : '' }
+                                    {account ? `${_getAbbreviatedAccountAddress(account.address)}` : ''}
                                 </strong>
                             </Button>
                         </Box>
@@ -132,7 +157,7 @@ export default function Navbar() {
                         </Box>
                     )
                 }
-                { _renderWalletPickerModal() }
+                {_renderWalletPickerModal()}
             </Flex>
         </Box>
     )
