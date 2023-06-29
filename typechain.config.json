@@ -1,8 +1,0 @@
-{
-    "projectFiles": ["./contracts/public_good/*"],
-    "skipLinting" : false,
-    "skipWasmValidation": true,
-    "artifactsPath" : "./artifacts",
-    "typechainGeneratedPath" : "./typechain",
-    "nightly": false
-}
