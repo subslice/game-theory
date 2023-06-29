@@ -1,13 +1,8 @@
-import { ChakraBaseProvider, extendBaseTheme } from '@chakra-ui/react'
-// `@chakra-ui/theme` is a part of the base install with `@chakra-ui/react`
-import chakraTheme from '@chakra-ui/theme'
+import { extendTheme } from '@chakra-ui/react'
 
-const { Button } = chakraTheme.components
-
-const theme = extendBaseTheme({
-  components: {
-    Button,
-  },
+const theme = extendTheme({
+  initialColorMode: 'dark',
+  useSystemColorMode: true,
 })
 
 export default theme

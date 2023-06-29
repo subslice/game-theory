@@ -10,12 +10,14 @@ import {
     ModalContent, ModalFooter, ModalHeader,
     ModalOverlay, Spacer, Text, useDisclosure
 } from '@chakra-ui/react'
+import { useState } from 'react'
 import { useWallet, useAllWallets } from 'useink'
 
 export default function Navbar() {
     const wallets = useAllWallets()
     const { isConnected, connect, disconnect, setAccount, accounts, account } = useWallet()
     const { isOpen: isWalletPickerOpen, onOpen: onPickerOpen, onClose: onPickerClose } = useDisclosure()
+    const [ selectedNetwork, setSelectedNetwork ] = useState('Local')
 
     const _getAbbreviatedAccountAddress = (address: string) => {
         return [
@@ -109,12 +111,12 @@ export default function Navbar() {
                     borderWidth='1px'
                     textColor={'white'}
                 >
-                    Network: Local
+                    Network: { selectedNetwork }
                 </MenuButton>
                 <MenuList>
-                    <MenuItem>Local</MenuItem>
-                    <MenuItem>Shibuya</MenuItem>
-                    <MenuItem>Astar Mainnet</MenuItem>
+                    <MenuItem onClick={() => setSelectedNetwork('Local')}>Local</MenuItem>
+                    <MenuItem onClick={() => setSelectedNetwork('Shibuya')}>Shibuya Testnet</MenuItem>
+                    <MenuItem onClick={() => setSelectedNetwork('Rococo')}>Rococo Contracts Tesetnet</MenuItem>
                 </MenuList>
             </Menu>
         )
