@@ -23,8 +23,10 @@ function MainMenu() {
     }
 
     return (
-        <Box>
-            MainMenu
+        <Box backgroundColor={'whiteAlpha.500'} borderRadius={7} padding={'25px'}>
+            <Heading size={'md'}>
+                Main Menu
+            </Heading>
         </Box>
     )
 }

@@ -17,3 +17,5 @@ Cargo.lock
 /typechain
 /typedContracts
 /bin
+
+**/.DS_Store

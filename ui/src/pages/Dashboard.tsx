@@ -8,12 +8,12 @@ import EventStream from '../components/EventStream'
 
 function Dashboard() {
   return (
-    <Box>
+    <Box minHeight={'calc(100vh - 75px)'}>
       <Flex>
-        <Box flex={1}>
+        <Box margin={'20px'} flex={1}>
           <MainMenu />
         </Box>
-        <Box maxWidth={'450px'} flex={1}>
+        <Box margin={'20px'} maxWidth={'450px'} flex={1}>
           <EventStream />
         </Box>
       </Flex>
