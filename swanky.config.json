@@ -1,0 +1,63 @@
+{
+  "node": {
+    "localPath": "bin/swanky-node",
+    "polkadotPalletVersions": "polkadot-v0.9.39",
+    "supportedInk": "v4.2.1"
+  },
+  "accounts": [
+    {
+      "alias": "alice",
+      "mnemonic": "//Alice",
+      "isDev": true,
+      "address": "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"
+    },
+    {
+      "alias": "bob",
+      "mnemonic": "//Bob",
+      "isDev": true,
+      "address": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+    },
+    {
+      "mnemonic": "//Charlie",
+      "isDev": true,
+      "alias": "charlie",
+      "address": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+    }
+  ],
+  "networks": {
+    "local": {
+      "url": "ws://127.0.0.1:9944"
+    },
+    "astar": {
+      "url": "wss://rpc.astar.network"
+    },
+    "shiden": {
+      "url": "wss://rpc.shiden.astar.network"
+    },
+    "shibuya": {
+      "url": "wss://rpc.shibuya.astar.network"
+    }
+  },
+  "contracts": {
+    "public_good": {
+      "name": "public_good",
+      "moduleName": "public_good",
+      "deployments": []
+    },
+    "rock_paper_scissors": {
+      "name": "rock_paper_scissors",
+      "moduleName": "rock_paper_scissors",
+      "deployments": []
+    },
+    "dictator": {
+      "name": "dictator",
+      "moduleName": "dictator",
+      "deployments": []
+    },
+    "router": {
+      "name": "router",
+      "moduleName": "router",
+      "deployments": []
+    }
+  }
+}

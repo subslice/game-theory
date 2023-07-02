@@ -7,7 +7,13 @@ This repo contains an implementation of some [games within the Game Theory field
 One example of games in the field of game-theory is called "Prisoner's Dilemma" and here's a [video from Youtube](https://www.youtube.com/watch?v=t9Lo2fgxWHw) 
 explaining the game's logic.
 
+### Current deployments on Astar mainnet
+
+- `public_good`: [XG3v16VareJDTxkM9uGxmRiz6qMhoxppnqohQk58tLxncNQ](https://astar.subscan.io/account/XG3v16VareJDTxkM9uGxmRiz6qMhoxppnqohQk58tLxncNQ)
+
+
 ### Current deployments on Shibuya Testnet
+
 - `public good`: [WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG](https://shibuya.subscan.io/account/WiSYijQ7QyTvpt27CuqyoyGgi6Z3okXeuEt9JeB9mjcAdgG)
 - `rock paper scissors`: [XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm](https://shibuya.subscan.io/account/XeYM2p1KSq9z3daXwfaw41ZKZLPbJGdaBdghsrfb3kPNMBm)
 - `dictator`: randomness extension not currently supported on Shibuya.
@@ -83,7 +89,7 @@ Another motivation is the exploration of !ink smart contracts functionality for 
 
 ## Getting Started
 
-> Note: please use the `nightly-2023-02-07` cargo toolchain channel. See [Cargo.toml](./Cargo.toml)
+> Note: the cargo toolchain channel specified in [`rust-toolchain.toml`](./rust-toolchain.toml) file.
 
 ### Testing
 
@@ -105,6 +111,16 @@ or
 
 alternatively `cd` into that contract's directory and run `cargo test` within the package code.
 
+### E2E Tests
+
+E2E tests are located in the `./tests` directory. They are written in Typescript and use Swanky CLI to run.
+
+Run e2e tests by doing the following steps:
+
+1. In a terminal window, run Swanky Node with `yarn swanky node start`
+2. In another terminal window, run the tests with `yarn test`
+   * You may need to compile each contract first with `swanky contract compile CONTRACT_NAME --release`
+
 ### Building Contracts
 
 Since this is a workspace, each contract currently needs to be built independently into WASM / ABI.
@@ -115,9 +131,35 @@ Use the following command to a build a contract:
 cargo contract build --release --manifest-path contracts/SOME_CONTRACT_FOLDER/Cargo.toml
 ```
 
+> This build command is the only thing required to do Ink! testing (unit or e2e), however, using a Node
+> such as Swanky Node (or any other Substrate Node with `pallet-contracts`) requires using Swanky CLI.
+
 or this to build all of them:
 ```sh
 sh build-all.sh
+```
+
+> Note: using the `build-all` script will require NodeJS to be installed.
+> [NVM](https://github.com/nvm-sh/nvm) is recommended for managing NodeJS versions.
+> 
+> This script uses `yarn` to install Swanky CLI and Swanky Node (deps). 
+> And runs the `compile` command for each contract, this builds the contracts using `cargo` and generates
+> Typescript types for the UI and (integration) E2E tests against a running instance of Swanky Node.
+
+### Building with Swanky CLI
+
+One of the benefits of using Swanky CLI is you get types generated for you automatically. This is useful for the UI and E2E tests.
+
+Run the following command to build a contract with Swanky CLI:
+
+```sh
+swanky contract compile CONTRACT_NAME --release
+```
+
+For example, to compile the `public_good` game:
+
+```sh
+swanky contract compile public_good --release
 ```
 
 ### Deploying Contracts
