@@ -20,6 +20,10 @@ export enum Game {
     PublicGood = 'PublicGood',
 }
 
+export enum WhichGame {
+    PublicGood = 'public_good',
+}
+
 export const getContractByName = (contract: Game) => {
     switch (contract) {
         case Game.PublicGood:

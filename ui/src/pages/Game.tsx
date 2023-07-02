@@ -14,8 +14,11 @@
  * 7. ...
  */
 
-import { Flex, Box, Heading, useQuery } from '@chakra-ui/react'
+import { useState, ReactNode, CSSProperties } from 'react'
+import { Flex, Box, Heading } from '@chakra-ui/react'
 import { useSearchParams } from 'react-router-dom'
+import { ReactTerminal, TerminalContextProvider } from 'react-terminal'
+import { Game as GameName, WhichGame, getFactoryByName, getContractByName } from '../utils/ink.utils'
 
 export enum Mode {
   Join = 'join',
@@ -23,11 +26,16 @@ export enum Mode {
   Spectate = 'spectate',
 }
 
+const tabbed: CSSProperties = { marginLeft: '100px' }
+const spaced: CSSProperties = { width: '80px', textAlign: 'left', display: 'inline-block' }
+
 function Game() {
   // parse the current query params of the page which renders this
   // react component
   const [queryParams] = useSearchParams()
   const queryObject = Object.fromEntries([...queryParams])
+  // keep track of the game's state
+  const [gameState, setGameState] = useState({} as Record<string, unknown>)
 
   const _renderNewGame = () => {
     return (
@@ -48,12 +56,73 @@ function Game() {
     }
   }
 
+  const WelcomeMsg = (
+    <span>
+      <span>Welcome to <code>`GameSlice`</code>.</span> <br />
+      Type "help" for all available commands. <br />
+    </span>
+  );
+
+  const HelpMsg = (
+    <span>
+      <span><code style={spaced}>`whois`</code>: about this project.</span>
+      <br /><br />
+      <span><code style={spaced}>`help`</code>: you just typed this -_-</span>
+      <br /><br />
+      <span><code style={spaced}>`new`</code>: starts a new game of the type specified.</span>
+      <br />
+      <span style={tabbed}> For example <code>'new public_good'</code> can be used to start a new "public_good" game instance.</span>
+      <br /><br />
+      <span><code style={spaced}>`join`</code>: enables joining an existing game by its ID <small>(contract ID)</small>.</span>
+      <br />
+      <span style={tabbed}>For example <code>'join public_good bYbM...Z39S'</code> <small>(please use the full address)</small>.</span><br />
+    </span>
+  );
+
+  const commands = {
+    whois: "Game Theory + SubSlice = GameSlice",
+    // cd: (directory: string) => `changed path to ${directory}`,
+    help: HelpMsg,
+    new: (game: WhichGame) => {
+      const availableGames = Object.values(WhichGame)
+      if (!availableGames.includes(game)) {
+        return `Invalid game. Available games are: ${availableGames.map(g => `'${g}'`).join(', ')}`
+      }
+
+      // TODO: implement starting a new game
+
+      return `Starting a ${game} game...`
+    },
+    join: (rawArgs: string) => {
+      // TODO: implement joining a game by its ID
+      const [game, contractId] = rawArgs.split(' ')
+      const availableGames = Object.values(WhichGame)
+      
+      if (!availableGames.includes(game as WhichGame)) {
+        return `Invalid game. Available games are: ${availableGames.map(g => `'${g}'`).join(', ')}`
+      } else if (!contractId) {
+        return `Invalid contract ID.`
+      }
+
+      return `Joining game ID = ${contractId} (${game})...`
+    },
+  };
+
   // {/* [GameRound] + [Game Info / EventStream] */}
   return (
-    <Box>
-      Game
+    <Box padding={'50px'}>
+      {/* Game */}
+      {/* { _invokeGameByMode(queryObject.mode as Mode || Mode.New) } */}
 
-      { _invokeGameByMode(queryObject.mode as Mode || Mode.New) }
+      <Box height={'calc(100vh - 150px)'}>
+        <TerminalContextProvider>
+          <ReactTerminal
+            commands={commands}
+            theme={'light'}
+            welcomeMessage={WelcomeMsg}
+          />
+        </TerminalContextProvider>
+      </Box>
     </Box>
   )
 }
