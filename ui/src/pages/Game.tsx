@@ -15,10 +15,12 @@
  */
 
 import { useState, ReactNode, CSSProperties } from 'react'
-import { Flex, Box, Heading } from '@chakra-ui/react'
+import { Flex, Box, Heading, Button } from '@chakra-ui/react'
 import { useSearchParams } from 'react-router-dom'
 import { ReactTerminal, TerminalContextProvider } from 'react-terminal'
-import { Game as GameName, WhichGame, getFactoryByName, getContractByName } from '../utils/ink.utils'
+import { Game as GameName, WhichGame, getFactoryByName, getContractByName, getAbiByName } from '../utils/ink.utils'
+import { useApi, useDeployer, useWallet } from 'useink'
+import { Abi } from '@polkadot/api-contract'
 
 export enum Mode {
   Join = 'join',
@@ -36,6 +38,10 @@ function Game() {
   const queryObject = Object.fromEntries([...queryParams])
   // keep track of the game's state
   const [gameState, setGameState] = useState({} as Record<string, unknown>)
+  // use the connected wallet to sign & send transactions
+  const { isConnected, account } = useWallet()
+  const deployer = useDeployer()
+  const ApiUtil = useApi()
 
   const _renderNewGame = () => {
     return (
@@ -59,7 +65,10 @@ function Game() {
   const WelcomeMsg = (
     <span>
       <span>Welcome to <code>`GameSlice`</code>.</span> <br />
-      Type "help" for all available commands. <br />
+      Type "help" for all available commands. <br /><br /><br />
+
+      <Button>Test</Button>
+      <br /><br />
     </span>
   );
 
@@ -83,13 +92,48 @@ function Game() {
     whois: "Game Theory + SubSlice = GameSlice",
     // cd: (directory: string) => `changed path to ${directory}`,
     help: HelpMsg,
-    new: (game: WhichGame) => {
+    new: async (game: WhichGame) => {
       const availableGames = Object.values(WhichGame)
-      if (!availableGames.includes(game)) {
+      
+      if (!game) {
+        return `Please specify a game to start`
+      } else if (!availableGames.includes(game)) {
         return `Invalid game. Available games are: ${availableGames.map(g => `'${g}'`).join(', ')}`
       }
 
       // TODO: implement starting a new game
+
+      const initFactory = getFactoryByName(GameName.PublicGood)
+      const gameFactory = new initFactory(ApiUtil!.api, account.signer)
+
+      // const result = await gameFactory.new({
+      //   maxPlayers: 2,
+      //   minPlayers: 2,
+      //   minRoundContribution: 1_000,
+      //   maxRoundContribution: 100_000,
+      //   roundRewardMultiplier: 12,
+      //   postRoundActions: false,
+      //   roundTimeout: 10,
+      //   maxRounds: 3,
+      //   joinFee: 10_000,
+      //   isRoundsBased: false,
+      // })
+
+      const abi = new Abi(getAbiByName(GameName.PublicGood), ApiUtil?.api.registry.getChainProperties())
+      const result = await deployer.dryRun(abi, 'new', {
+        maxPlayers: 2,
+        minPlayers: 2,
+        minRoundContribution: 1_000,
+        maxRoundContribution: 100_000,
+        roundRewardMultiplier: 12,
+        postRoundActions: false,
+        roundTimeout: 10,
+        maxRounds: 3,
+        joinFee: 10_000,
+        isRoundsBased: false,
+      })
+
+      debugger
 
       return `Starting a ${game} game...`
     },

@@ -1,6 +1,7 @@
 import { Custom, Chain } from 'useink/chains'
 import PublicGood from '../../../typedContracts/public_good/contracts/public_good'
 import PublicGoodFactory from '../../../typedContracts/public_good/constructors/public_good'
+import PublicGoodABI from '../../../artifacts/public_good/public_good.json'
 
 // Source: https://use.ink/frontend/configuration/
 export const LocalChain: Chain = {
@@ -39,5 +40,14 @@ export const getFactoryByName = (factory: Game) => {
             return PublicGoodFactory
         default:
             throw new Error('Unknown factory')
+    }
+}
+
+export const getAbiByName = (contract: Game) => {
+    switch (contract) {
+        case Game.PublicGood:
+            return PublicGoodABI
+        default:
+            throw new Error('Unknown contract')
     }
 }
