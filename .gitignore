@@ -19,3 +19,10 @@ Cargo.lock
 /bin
 
 **/.DS_Store
+
+artifacts/
+tests/*/artifacts
+tests/*/testReports
+
+# asdf
+.tool-versions
