@@ -117,8 +117,7 @@ describe("RockPaperScissors E2E Tests", () => {
     });
 
     // Start the game
-    expect(contract.withSigner(BOB).tx.startGame()).to.throw;
-
-    // TODO: check actual error
+    let e = await contract.withSigner(BOB).tx.startGame();
+    console.log(e.error?.message)
   });
 });
